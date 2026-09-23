@@ -126,6 +126,10 @@
     sync.onStatusUpdate = ({ status }) => {
       if (status === 'connected') {
         syncStatusDot.className = 'status-dot connected';
+        syncStatusText.textContent = sync.getActivePeerCountText();
+      } else if (status === 'offline') {
+        syncStatusDot.className = 'status-dot syncing';
+        syncStatusText.textContent = 'Offline (Saved locally)';
       } else {
         syncStatusDot.className = 'status-dot syncing';
         syncStatusText.textContent = 'Connecting...';
