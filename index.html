@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>SyncPad — Real-Time Cross-Device Notepad & Link Hub</title>
+  <meta name="description" content="A vibrant, blank typable notepad and link hub hosted on GitHub Pages that syncs automatically in real time across macOS, Windows, and mobile browsers.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%234f46e5%22 stroke-width=%222%22><path d=%22M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z%22/><polyline points=%2214 2 14 8 20 8%22/><line x1=%2216%22 y1=%2213%22 x2=%228%22 y2=%2213%22/><line x1=%2216%22 y1=%2217%22 x2=%228%22 y2=%2217%22/><polyline points=%2210 9 9 9 8 9%22/></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body data-ruling="blank">
+
+  <!-- Main Top Header -->
+  <header class="app-header">
+    <div class="brand-section">
+      <div class="brand-logo-badge">
+        <svg class="icon icon-lg" viewBox="0 0 24 24" style="stroke: #ffffff;">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+          <line x1="16" y1="13" x2="8" y2="13"></line>
+          <line x1="16" y1="17" x2="8" y2="17"></line>
+        </svg>
+      </div>
+      <div class="brand-title-wrap">
+        <div class="brand-title">SyncPad</div>
+        <div class="brand-subline">Real-Time P2P Notepad</div>
+      </div>
+    </div>
+
+    <!-- Live Multi-Device Sync Indicator -->
+    <div class="sync-status-bar" id="sync-status-container">
+      <span class="status-dot connected" id="sync-status-dot"></span>
+      <span id="sync-status-text">1 device online</span>
+      <span class="room-pill" id="room-name-display" title="Click to share or change room">#collab-room</span>
+    </div>
+
+    <!-- Action Buttons -->
+    <div class="header-actions">
+      <button class="btn btn-primary" id="btn-share-room" title="Share link to view & edit on another device">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+        <span>Share / QR</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- Quick Paste Link Tray (Optimized for pasting links one by one) -->
+  <section class="quick-paste-container">
+    <div class="quick-paste-box">
+      <span class="paste-input-icon">
+        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+      </span>
+      <input 
+        type="text" 
+        id="quick-paste-input" 
+        class="quick-paste-input" 
+        placeholder="Paste a link here (or press Cmd/Ctrl+V anywhere)..." 
+        autocomplete="off"
+        spellcheck="false"
+      />
+      <div class="paste-box-actions">
+        <button class="btn" id="btn-paste-clipboard" title="Paste directly from your clipboard">
+          <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+          <span>Paste Clipboard</span>
+        </button>
+        <button class="btn btn-primary" id="btn-add-link">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+          <span>Add Link</span>
+        </button>
+      </div>
+    </div>
+    <div class="quick-paste-hint">
+      <span>Auto-syncs between macOS and Windows in real time • Links persist permanently until deleted</span>
+      <span>Shortcut: <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd></span>
+    </div>
+  </section>
+
+  <!-- Paper View Switcher & Toolbar -->
+  <section class="paper-controls-bar">
+    <div class="mode-segmented-control">
+      <button class="segment-btn active" id="segment-interactive">
+        <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+        <span>Interactive Links</span>
+        <span class="link-counter-badge" id="link-count-badge">0</span>
+      </button>
+      <button class="segment-btn" id="segment-raw">
+        <svg class="icon" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6"></line><line x1="8" y1="12" x2="21" y2="12"></line><line x1="8" y1="18" x2="21" y2="18"></line><line x1="3" y1="6" x2="3.01" y2="6"></line><line x1="3" y1="12" x2="3.01" y2="12"></line><line x1="3" y1="18" x2="3.01" y2="18"></line></svg>
+        <span>Blank Notepad</span>
+      </button>
+    </div>
+
+    <div class="canvas-customizers">
+      <!-- Theme Switcher -->
+      <select id="select-theme" class="custom-select" title="Color Theme">
+        <option value="light">Paper Light</option>
+        <option value="dark">Dark Slate</option>
+        <option value="sepia">Warm Sepia</option>
+        <option value="terminal">Cyber Neon</option>
+      </select>
+
+      <!-- Font Switcher -->
+      <select id="select-font" class="custom-select" title="Typography">
+        <option value="sans">Clean Sans</option>
+        <option value="mono">Monospace</option>
+        <option value="serif">Editorial Serif</option>
+      </select>
+
+      <!-- Paper Ruling Switcher -->
+      <select id="select-ruling" class="custom-select" title="Paper Ruling">
+        <option value="blank">Blank Sheet</option>
+        <option value="lined">Lined Paper</option>
+        <option value="grid">Grid Pattern</option>
+        <option value="dots">Dot Matrix</option>
+      </select>
+    </div>
+  </section>
+
+  <!-- The Blank Typable Paper Sheet Canvas -->
+  <main class="sheet-wrapper">
+    <div class="paper-sheet paper-content">
+
+      <!-- View 1: Interactive Link Cards (Optimized for 1-by-1 pasting, 1-click open, manual delete) -->
+      <div class="link-list-view" id="link-list-view">
+        <div class="link-list-header">
+          <div class="link-list-title">
+            <span>Pasted Links</span>
+            <span id="link-list-title-count"></span>
+          </div>
+          <div class="link-list-actions">
+            <button class="btn" id="btn-open-all" title="Open all unread links in separate tabs">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+              <span>Open All</span>
+            </button>
+            <button class="btn" id="btn-copy-all" title="Copy all links as a list">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+              <span>Copy All</span>
+            </button>
+            <button class="btn" id="btn-clear-all" title="Delete all links permanently">
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span>Delete All</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Dynamic Link Cards Container -->
+        <div class="link-cards-container" id="link-cards-container">
+          <!-- Populated dynamically by app.js -->
+        </div>
+
+        <!-- Empty State -->
+        <div class="empty-links-placeholder" id="empty-links-placeholder">
+          <div class="empty-icon-wrap">
+            <svg class="icon icon-lg" viewBox="0 0 24 24" style="width: 28px; height: 28px;">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+            </svg>
+          </div>
+          <div class="empty-title">Your blank link sheet is ready</div>
+          <div class="empty-subtitle">
+            Copy any link on macOS or Windows and press <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd> or click <strong>Paste Clipboard</strong> above to start syncing.
+          </div>
+        </div>
+      </div>
+
+      <!-- View 2: Raw Typable Blank Sheet (Collaborative Keystroke CRDT) -->
+      <div class="raw-notepad-view" id="raw-notepad-view">
+        <textarea 
+          id="paper-textarea" 
+          class="paper-textarea" 
+          placeholder="Start typing your notes freely here... Keystrokes sync automatically character-by-character across macOS and Windows in real time."
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <!-- Bottom Paper Status Bar -->
+      <footer class="paper-footer-bar">
+        <div class="footer-stats">
+          <span id="stat-link-count">0 links</span>
+          <span id="stat-word-count">0 words</span>
+          <span id="stat-char-count">0 chars</span>
+        </div>
+        <div class="footer-meta">
+          <span>Active Device: <strong id="stat-device-name">Detecting...</strong></span>
+          <span>•</span>
+          <span>Permanent IndexedDB Storage</span>
+        </div>
+      </footer>
+    </div>
+  </main>
+
+  <!-- Share & QR Code Modal Dialog -->
+  <div class="modal-overlay" id="share-modal">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <div class="modal-title">Share Workspace</div>
+        <button class="btn-close-modal" id="btn-close-modal" aria-label="Close dialog">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+
+      <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
+        Open this exact link on your Mac, Windows PC, or phone. Both devices will view and edit this sheet simultaneously in real time.
+      </p>
+
+      <div class="qr-code-box" id="qr-code-box">
+        <!-- Rendered by app.js -->
+      </div>
+
+      <div class="share-url-box">
+        <input type="text" id="share-url-input" class="share-url-input" readonly />
+        <button class="btn btn-primary" id="btn-copy-share-url">Copy Link</button>
+      </div>
+
+      <div style="border-top: 1px solid var(--border-subtle); padding-top: 14px; margin-top: 4px;">
+        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
+          Switch or Create Workspace Room
+        </label>
+        <div style="display: flex; gap: 8px; margin-top: 8px;">
+          <input type="text" id="room-switch-input" class="quick-paste-input" style="border: 1px solid var(--border-subtle); padding: 7px 12px; border-radius: var(--radius-md); font-size: 13px;" placeholder="Room name (e.g. work-links)" />
+          <button class="btn" id="btn-switch-room">Switch</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Bundled Yjs, WebRTC, and IndexedDB -->
+  <script src="js/yjs-bundle.js"></script>
+  <!-- Real-Time Sync Engine -->
+  <script src="js/sync.js"></script>
+  <!-- UI Controller -->
+  <script src="js/app.js"></script>
+</body>
+</html>
