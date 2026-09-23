@@ -1,6 +1,6 @@
 /**
- * SyncPad - Application UI Controller & User Interaction
- * Modern, colorful, vector-icon UI • Optimized for link pasting • Permanent persistence
+ * Ringo's Notepad: Application UI Controller & User Interaction
+ * Modern, leafy pastel green UI • Optimized for link pasting • Permanent persistence
  */
 
 (function () {
@@ -273,6 +273,17 @@
       document.body.setAttribute('data-ruling', val);
       localStorage.setItem('syncpad_ruling', val);
     });
+
+    // Ambience Animation Toggle
+    const btnToggleAmbience = document.getElementById('btn-toggle-ambience');
+    if (btnToggleAmbience) {
+      btnToggleAmbience.addEventListener('click', () => {
+        if (window.natureAmbience) {
+          const active = window.natureAmbience.toggle();
+          showToast(active ? 'Nature ambience enabled' : 'Nature ambience paused');
+        }
+      });
+    }
 
     // 8. Room Sharing & Modals
     btnShareRoom.addEventListener('click', openShareModal);

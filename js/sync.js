@@ -1,7 +1,7 @@
 /**
- * SyncPad - Cloud-Persistent Real-Time Sync Engine
+ * Ringo's Notepad: Cloud-Persistent Real-Time Sync Engine
  * Retained State Architecture: Links & Notepad persist even when 0 users are online.
- * Cross-device sync between macOS, Windows, Linux, and Mobile.
+ * Universal sync across all browsers and devices (macOS, Windows, iOS, Android, Linux).
  */
 
 class SyncEngine {
@@ -40,11 +40,14 @@ class SyncEngine {
   detectDevice() {
     const ua = navigator.userAgent || '';
     let os = 'Device';
-    if (ua.includes('Macintosh') || ua.includes('Mac OS')) os = 'macOS';
-    else if (ua.includes('Windows')) os = 'Windows';
-    else if (ua.includes('iPhone') || ua.includes('iPad')) os = 'iOS';
+    if (ua.includes('iPhone')) os = 'iPhone';
+    else if (ua.includes('iPad')) os = 'iPad';
     else if (ua.includes('Android')) os = 'Android';
+    else if (ua.includes('Macintosh') || ua.includes('Mac OS')) os = 'Mac';
+    else if (ua.includes('Windows')) os = 'Windows';
+    else if (ua.includes('CrOS')) os = 'Chromebook';
     else if (ua.includes('Linux')) os = 'Linux';
+    else os = 'Browser';
 
     const colors = ['#6366f1', '#10b981', '#f59e0b', '#ec4899', '#06b6d4', '#8b5cf6'];
     const randomColor = colors[Math.floor(Math.random() * colors.length)];

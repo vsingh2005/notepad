@@ -3,12 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>SyncPad — Real-Time Cross-Device Notepad & Link Hub</title>
-  <meta name="description" content="A vibrant, blank typable notepad and link hub hosted on GitHub Pages that syncs automatically in real time across macOS, Windows, and mobile browsers.">
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%234f46e5%22 stroke-width=%222%22><path d=%22M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z%22/><polyline points=%2214 2 14 8 20 8%22/><line x1=%2216%22 y1=%2213%22 x2=%228%22 y2=%2213%22/><line x1=%2216%22 y1=%2217%22 x2=%228%22 y2=%2217%22/><polyline points=%2210 9 9 9 8 9%22/></svg>">
+  <title>Ringo's Notepad: Real-Time Universal Notepad & Link Hub</title>
+  <meta name="description" content="A leafy pastel green typable notepad and link hub hosted on GitHub Pages that syncs automatically in real time across any browser and device: phones, tablets, laptops, and desktops.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%232d8a5e%22 stroke-width=%222%22><path d=%22M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z%22/><polyline points=%2214 2 14 8 20 8%22/><line x1=%2216%22 y1=%2213%22 x2=%228%22 y2=%2213%22/><line x1=%2216%22 y1=%2217%22 x2=%228%22 y2=%2217%22/><polyline points=%2210 9 9 9 8 9%22/></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
 <body data-ruling="blank">
+
+  <!-- Animated Living Nature Background Canvas -->
+  <canvas id="nature-canvas" class="nature-canvas"></canvas>
 
   <!-- Main Top Header -->
   <header class="app-header">
@@ -22,8 +25,8 @@
         </svg>
       </div>
       <div class="brand-title-wrap">
-        <div class="brand-title">SyncPad</div>
-        <div class="brand-subline">Real-Time P2P Notepad</div>
+        <div class="brand-title">Ringo's Notepad</div>
+        <div class="brand-subline">Real-Time Universal Notepad</div>
       </div>
     </div>
 
@@ -35,6 +38,10 @@
 
     <!-- Action Buttons -->
     <div class="header-actions">
+      <button class="btn btn-ambience active" id="btn-toggle-ambience" title="Toggle Nature Ambience Animation">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M12 22C6.5 22 2 17.5 2 12c0-5 4-9.5 9-10 .5 0 1 .5 1 1 0 6 4 10 10 10 .5 0 1 .5 1 1 0 5.5-4.5 10-10 10z"></path></svg>
+        <span>Ambience</span>
+      </button>
       <button class="btn btn-primary" id="btn-share-room" title="Share link to view & edit on another device">
         <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
         <span>Share / QR</span>
@@ -68,7 +75,7 @@
       </div>
     </div>
     <div class="quick-paste-hint">
-      <span>Auto-syncs between macOS and Windows in real time • Links persist permanently until deleted</span>
+      <span>Auto-syncs across all browsers & devices in real time • Links persist permanently until deleted</span>
       <span>Shortcut: <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd></span>
     </div>
   </section>
@@ -155,7 +162,7 @@
           </div>
           <div class="empty-title">Your blank link sheet is ready</div>
           <div class="empty-subtitle">
-            Copy any link on macOS or Windows and press <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd> or click <strong>Paste Clipboard</strong> above to start syncing.
+            Copy any link on your phone, tablet, laptop, or desktop and press <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd> or click <strong>Paste Clipboard</strong> above to start syncing.
           </div>
         </div>
       </div>
@@ -165,7 +172,7 @@
         <textarea 
           id="paper-textarea" 
           class="paper-textarea" 
-          placeholder="Start typing your notes freely here... Keystrokes sync automatically character-by-character across macOS and Windows in real time."
+          placeholder="Start typing your notes freely here... Keystrokes sync automatically across any browser and device in real time."
           spellcheck="false"
         ></textarea>
       </div>
@@ -197,7 +204,7 @@
       </div>
 
       <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
-        Open this exact link on your Mac, Windows PC, or phone. Both devices will view and edit this sheet simultaneously in real time.
+        Open this exact link on any phone, tablet, laptop, or desktop browser. All devices view and edit this sheet simultaneously in real time.
       </p>
 
       <div class="qr-code-box" id="qr-code-box">
@@ -216,6 +223,8 @@
 
   <!-- Bundled MQTT, Yjs, and Storage Engine -->
   <script src="js/sync-bundle.js"></script>
+  <!-- Animated Nature Ambience Engine -->
+  <script src="js/nature.js"></script>
   <!-- Real-Time Sync Engine -->
   <script src="js/sync.js"></script>
   <!-- UI Controller -->

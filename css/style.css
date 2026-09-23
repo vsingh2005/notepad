@@ -1,45 +1,45 @@
 /* ==========================================================================
-   SyncPad - Vibrant, Modern Cross-Device Real-Time Notepad & Link Hub
+   Ringo's Notepad - Leafy Pastel Green Cross-Device Real-Time Notepad
    Ultra-Clean Visual Aesthetic • Zero Emojis • Vector Icons • Permanent Sync
    ========================================================================== */
 
 :root {
-  /* Paper Light Theme (Default: Modern, Vibrant & Crisp) */
-  --bg-app: #f4f6fa;
+  /* Leafy Pastel Green Theme (Default: Sage, Matcha & Mint) */
+  --bg-app: #f0f7f3;
   --bg-paper: #ffffff;
-  --bg-paper-alt: #f8fafc;
+  --bg-paper-alt: #f3f9f5;
   --bg-card: #ffffff;
-  --bg-card-hover: #fcfdfe;
-  --text-main: #0f172a;
-  --text-muted: #475569;
-  --text-subtle: #94a3b8;
-  --border-subtle: #e2e8f0;
-  --border-focus: #6366f1;
+  --bg-card-hover: #f7fbf8;
+  --text-main: #132a1e;
+  --text-muted: #3a5c4a;
+  --text-subtle: #739682;
+  --border-subtle: #d3e8dc;
+  --border-focus: #2d8a5e;
 
-  /* Vibrant Accent Palette */
-  --primary: #4f46e5;
-  --primary-hover: #4338ca;
-  --primary-light: #eef2ff;
-  --primary-border: #c7d2fe;
-  --primary-gradient: linear-gradient(135deg, #4f46e5 0%, #7c3aed 50%, #a855f7 100%);
-  --brand-gradient: linear-gradient(135deg, #6366f1 0%, #ec4899 100%);
+  /* Leafy Pastel Accent Palette */
+  --primary: #2d8a5e;
+  --primary-hover: #236c49;
+  --primary-light: #e8f7ee;
+  --primary-border: #b7e4c7;
+  --primary-gradient: linear-gradient(135deg, #2d8a5e 0%, #40a374 50%, #52b788 100%);
+  --brand-gradient: linear-gradient(135deg, #52b788 0%, #2d8a5e 100%);
 
-  --accent-green: #10b981;
-  --accent-green-bg: #ecfdf5;
-  --accent-green-border: #a7f3d0;
+  --accent-green: #2d8a5e;
+  --accent-green-bg: #e8f7ee;
+  --accent-green-border: #b7e4c7;
 
-  --accent-orange: #f59e0b;
-  --accent-orange-bg: #fffbeb;
+  --accent-orange: #d97706;
+  --accent-orange-bg: #fef3c7;
   
-  --accent-red: #ef4444;
-  --accent-red-hover: #dc2626;
-  --accent-red-bg: #fef2f2;
-  --accent-red-border: #fecaca;
+  --accent-red: #e11d48;
+  --accent-red-hover: #be123c;
+  --accent-red-bg: #ffe4e6;
+  --accent-red-border: #fecdd3;
 
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -2px rgba(0, 0, 0, 0.05);
-  --shadow-paper: 0 12px 32px -4px rgba(15, 23, 42, 0.08), 0 4px 12px -2px rgba(15, 23, 42, 0.03);
-  --shadow-float: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 1px 2px 0 rgba(19, 42, 30, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(19, 42, 30, 0.07), 0 2px 4px -2px rgba(19, 42, 30, 0.05);
+  --shadow-paper: 0 12px 32px -4px rgba(19, 42, 30, 0.08), 0 4px 12px -2px rgba(19, 42, 30, 0.03);
+  --shadow-float: 0 20px 25px -5px rgba(19, 42, 30, 0.1), 0 8px 10px -6px rgba(19, 42, 30, 0.1);
 
   --font-family-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
   --font-family-mono: "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, monospace;
@@ -55,32 +55,32 @@
   --transition-smooth: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-/* Dark Slate / Obsidian Theme */
+/* Dark Slate / Forest Moss Theme */
 [data-theme="dark"] {
-  --bg-app: #090d16;
-  --bg-paper: #111827;
-  --bg-paper-alt: #1a2336;
-  --bg-card: #141d2f;
-  --bg-card-hover: #1c273e;
-  --text-main: #f8fafc;
-  --text-muted: #94a3b8;
-  --text-subtle: #64748b;
-  --border-subtle: #232f48;
-  --border-focus: #818cf8;
+  --bg-app: #08120c;
+  --bg-paper: #0e1e15;
+  --bg-paper-alt: #142a1e;
+  --bg-card: #12241a;
+  --bg-card-hover: #183023;
+  --text-main: #f0fdf4;
+  --text-muted: #86efac;
+  --text-subtle: #4ade80;
+  --border-subtle: #1c3d2b;
+  --border-focus: #34d399;
 
-  --primary: #6366f1;
-  --primary-hover: #818cf8;
-  --primary-light: #1e1b4b;
-  --primary-border: #3730a3;
-  --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
-  --brand-gradient: linear-gradient(135deg, #818cf8 0%, #f472b6 100%);
+  --primary: #34d399;
+  --primary-hover: #6ee7b7;
+  --primary-light: #064e3b;
+  --primary-border: #065f46;
+  --primary-gradient: linear-gradient(135deg, #34d399 0%, #10b981 50%, #059669 100%);
+  --brand-gradient: linear-gradient(135deg, #6ee7b7 0%, #10b981 100%);
 
   --accent-green-bg: #064e3b;
   --accent-green-border: #065f46;
   --accent-red-bg: #450a0a;
   --accent-red-border: #7f1d1d;
 
-  --shadow-paper: 0 20px 45px -10px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.07);
+  --shadow-paper: 0 20px 45px -10px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(74, 222, 128, 0.1);
   --shadow-float: 0 25px 50px -12px rgba(0, 0, 0, 0.85);
 }
 
@@ -164,15 +164,26 @@
 
 body {
   font-family: var(--font-current);
-  background-color: var(--bg-app);
+  background-color: transparent;
   color: var(--text-main);
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow-x: hidden;
-  transition: background-color 0.3s ease, color 0.3s ease;
+  transition: color 0.3s ease;
   -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+
+/* Animated Living Nature Background Canvas */
+.nature-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* Vector Icons Helper */
@@ -352,6 +363,12 @@ body {
   color: #ffffff;
 }
 
+.btn-ambience.active {
+  background: var(--accent-green-bg);
+  color: var(--accent-green);
+  border-color: var(--accent-green-border);
+}
+
 /* ==========================================================================
    Quick Paste Link Tray (Optimized for 1-at-a-time link pasting)
    ========================================================================== */
@@ -361,10 +378,14 @@ body {
   padding: 0 24px;
   margin-top: 8px;
   margin-bottom: 14px;
+  position: relative;
+  z-index: 2;
 }
 
 .quick-paste-box {
-  background: var(--bg-paper);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 2px solid var(--primary-border);
   border-radius: var(--radius-xl);
   padding: 7px 10px 7px 16px;
@@ -373,6 +394,18 @@ body {
   gap: 12px;
   box-shadow: var(--shadow-paper);
   transition: var(--transition-smooth);
+}
+
+[data-theme="dark"] .quick-paste-box {
+  background: rgba(20, 29, 47, 0.93);
+}
+
+[data-theme="sepia"] .quick-paste-box {
+  background: rgba(250, 246, 238, 0.95);
+}
+
+[data-theme="terminal"] .quick-paste-box {
+  background: rgba(9, 30, 20, 0.93);
 }
 
 .quick-paste-box:focus-within {
@@ -514,10 +547,14 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
+  position: relative;
+  z-index: 2;
 }
 
 .paper-sheet {
-  background-color: var(--bg-paper);
+  background-color: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-paper);
   border: 1px solid var(--border-subtle);
@@ -527,6 +564,18 @@ body {
   position: relative;
   overflow: hidden;
   transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+[data-theme="dark"] .paper-sheet {
+  background-color: rgba(17, 24, 39, 0.93);
+}
+
+[data-theme="sepia"] .paper-sheet {
+  background-color: rgba(250, 246, 238, 0.95);
+}
+
+[data-theme="terminal"] .paper-sheet {
+  background-color: rgba(7, 23, 16, 0.93);
 }
 
 /* Link Cards View */
