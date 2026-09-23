@@ -60,8 +60,6 @@
   const shareUrlInput = document.getElementById('share-url-input');
   const btnCopyShareUrl = document.getElementById('btn-copy-share-url');
   const qrCodeBox = document.getElementById('qr-code-box');
-  const roomSwitchInput = document.getElementById('room-switch-input');
-  const btnSwitchRoom = document.getElementById('btn-switch-room');
   const toastContainer = document.getElementById('toast-container');
 
   // State
@@ -100,9 +98,6 @@
   // Setup Sync Engine Event Bindings
   function setupSyncEngine() {
     const sync = window.syncEngine;
-
-    roomNameDisplay.textContent = `#${sync.roomName}`;
-    roomSwitchInput.value = sync.roomName;
 
     sync.onLinksUpdate = (links) => {
       currentLinks = links || [];
@@ -253,7 +248,6 @@
 
     // 8. Room Sharing & Modals
     btnShareRoom.addEventListener('click', openShareModal);
-    roomNameDisplay.addEventListener('click', openShareModal);
     btnCloseModal.addEventListener('click', closeShareModal);
     shareModal.addEventListener('click', (e) => {
       if (e.target === shareModal) closeShareModal();
@@ -266,15 +260,6 @@
         setTimeout(() => { btnCopyShareUrl.textContent = 'Copy Link'; }, 2000);
         showToast('Link copied! Open it on your other computer');
       });
-    });
-
-    btnSwitchRoom.addEventListener('click', () => {
-      const newRoom = roomSwitchInput.value.trim();
-      if (newRoom) {
-        window.syncEngine.setRoom(newRoom);
-        closeShareModal();
-        window.location.reload();
-      }
     });
   }
 
@@ -477,7 +462,7 @@
   }
 
   function updateShareUrl() {
-    const fullUrl = `${window.location.origin}${window.location.pathname}#room=${encodeURIComponent(window.syncEngine.roomName)}`;
+    const fullUrl = window.location.origin + window.location.pathname;
     shareUrlInput.value = fullUrl;
   }
 

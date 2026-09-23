@@ -1,16 +1,23 @@
 /**
- * SyncPad - Real-Time Collaborative CRDT, WebRTC & BroadcastChannel Sync Engine
- * Guarantees permanent persistence (IndexedDB) and bidirectional cross-device sync.
+ * SyncPad - Ultra-Reliable Real-Time Collaborative Engine
+ * Unified Single Workspace Room at all times across all devices (macOS & Windows)
  */
 
 class SyncEngine {
   constructor() {
-    this.doc = null;
-    this.provider = null;
-    this.persistence = null;
-    this.broadcastChannel = null;
-    this.roomName = this.getRoomFromUrl();
+    // Single unified room at all times
+    this.roomName = 'syncpad-main-workspace';
     this.deviceInfo = this.detectDevice();
+    this.client = null;
+    this.broadcastChannel = null;
+    
+    // In-memory data store
+    this.links = [];
+    this.notes = '';
+    this.deletedHistory = [];
+    
+    // Connected peers tracking
+    this.peers = new Map(); // id -> { device, lastSeen }
     
     // Callbacks
     this.onLinksUpdate = null;
@@ -18,12 +25,9 @@ class SyncEngine {
     this.onPeersUpdate = null;
     this.onStatusUpdate = null;
 
-    this.deletedHistory = []; // For Undo functionality
+    this.isConnected = false;
   }
 
-  /**
-   * Detect current device/OS for peer presence display
-   */
   detectDevice() {
     const ua = navigator.userAgent || '';
     let os = 'Device';
@@ -37,7 +41,7 @@ class SyncEngine {
     const randomColor = colors[Math.floor(Math.random() * colors.length)];
 
     return {
-      id: Math.random().toString(36).substring(2, 9),
+      id: 'dev_' + Math.random().toString(36).substring(2, 9),
       name: `${os} (${Math.floor(100 + Math.random() * 900)})`,
       os: os,
       color: randomColor
@@ -45,178 +49,328 @@ class SyncEngine {
   }
 
   /**
-   * Parse room name from URL hash (e.g. #room=work-links)
-   */
-  getRoomFromUrl() {
-    const hash = window.location.hash;
-    if (hash) {
-      const match = hash.match(/room=([^&]+)/);
-      if (match && match[1]) {
-        return decodeURIComponent(match[1]);
-      }
-    }
-    const stored = localStorage.getItem('syncpad_last_room');
-    if (stored) return stored;
-    return 'collab-room';
-  }
-
-  /**
-   * Set room in URL and reload
-   */
-  setRoom(newRoom) {
-    const cleanRoom = encodeURIComponent(newRoom.trim().toLowerCase());
-    window.location.hash = `#room=${cleanRoom}`;
-    localStorage.setItem('syncpad_last_room', cleanRoom);
-  }
-
-  /**
-   * Initialize Yjs, IndexedDB, BroadcastChannel, and WebRTC
+   * Initialize Storage, BroadcastChannel, and WebSocket MQTT Sync
    */
   init() {
-    if (!window.Y) {
-      console.error('[SyncPad] Yjs bundle missing!');
-      return;
+    // Clean any lingering room hashes from URL
+    if (window.location.hash) {
+      history.replaceState(null, document.title, window.location.pathname + window.location.search);
     }
 
-    const Y = window.Y;
-    this.doc = new Y.Doc();
+    // 1. Load permanent local storage
+    this.loadFromLocalStorage();
 
-    // 1. Permanent Local Persistence via IndexedDB
-    // Links remain forever in storage until manually removed via the delete button.
-    const idbName = `syncpad_db_${this.roomName}`;
-    if (window.IndexeddbPersistence) {
-      try {
-        this.persistence = new window.IndexeddbPersistence(idbName, this.doc);
-        this.persistence.on('synced', () => {
-          console.log('[SyncPad] IndexedDB permanent storage synced.');
-          this.triggerDataUpdate();
-        });
-      } catch (e) {
-        console.warn('[SyncPad] IndexedDB error:', e);
-      }
-    }
-
-    // 2. Instant Same-Device Cross-Tab Sync via BroadcastChannel
+    // 2. Setup BroadcastChannel for instant same-computer cross-tab sync
     try {
       this.broadcastChannel = new BroadcastChannel(`syncpad-bc-${this.roomName}`);
       this.broadcastChannel.onmessage = (e) => {
-        if (e.data && e.data.update) {
-          Y.applyUpdate(this.doc, new Uint8Array(e.data.update), 'broadcast');
-        } else if (e.data && e.data.requestFullSync) {
-          const state = Y.encodeStateAsUpdate(this.doc);
-          this.broadcastChannel.postMessage({ update: Array.from(state) });
-        }
+        this.handleIncomingMessage(e.data, false);
       };
-
-      this.doc.on('update', (update, origin) => {
-        if (origin !== 'broadcast' && this.broadcastChannel) {
-          this.broadcastChannel.postMessage({ update: Array.from(update) });
-        }
-      });
-
-      // Request latest state from any other tab
-      this.broadcastChannel.postMessage({ requestFullSync: true });
-    } catch (bcErr) {
-      console.warn('[SyncPad] BroadcastChannel unavailable:', bcErr);
+    } catch (e) {
+      console.warn('[SyncPad] BroadcastChannel unavailable:', e);
     }
 
-    // 3. Multi-Device Real-Time Sync via WebRTC (macOS <-> Windows <-> Mobile)
-    if (window.WebrtcProvider) {
-      try {
-        this.provider = new window.WebrtcProvider(`syncpad-p2p-${this.roomName}`, this.doc, {
-          signaling: [
-            'wss://signaling.yjs.dev',
-            'wss://y-webrtc-signaling-eu.herokuapp.com',
-            'wss://y-webrtc-signaling-us.herokuapp.com'
-          ],
-          peerOpts: {
-            iceServers: [
-              { urls: 'stun:stun.l.google.com:19302' },
-              { urls: 'stun:stun1.l.google.com:19302' },
-              { urls: 'stun:stun2.l.google.com:19302' },
-              { urls: 'stun:stun3.l.google.com:19302' }
-            ]
-          }
-        });
+    // 3. Connect to High-Availability Public MQTT over WebSockets
+    this.connectMqtt();
 
-        // Presence & Awareness
-        if (this.provider.awareness) {
-          this.provider.awareness.setLocalStateField('user', this.deviceInfo);
+    // 4. Start Peer Presence Heartbeat
+    setInterval(() => {
+      this.sendPresencePing();
+      this.cleanStalePeers();
+    }, 3500);
+  }
 
-          this.provider.awareness.on('change', () => {
-            const states = Array.from(this.provider.awareness.getStates().values());
-            const peers = states.filter(s => s.user).map(s => s.user);
-            if (this.onPeersUpdate) {
-              this.onPeersUpdate({
-                count: peers.length,
-                peers: peers,
-                currentDevice: this.deviceInfo
-              });
-            }
-          });
+  loadFromLocalStorage() {
+    try {
+      const savedLinks = localStorage.getItem(`syncpad_links_${this.roomName}`);
+      if (savedLinks) {
+        this.links = JSON.parse(savedLinks);
+        if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+      }
+      const savedNotes = localStorage.getItem(`syncpad_notes_${this.roomName}`);
+      if (savedNotes) {
+        this.notes = savedNotes;
+        if (this.onNotesUpdate) this.onNotesUpdate(this.notes);
+      }
+    } catch (err) {
+      console.warn('[SyncPad] Failed to load local storage:', err);
+    }
+  }
+
+  saveToLocalStorage() {
+    try {
+      localStorage.setItem(`syncpad_links_${this.roomName}`, JSON.stringify(this.links));
+      localStorage.setItem(`syncpad_notes_${this.roomName}`, this.notes);
+    } catch (err) {
+      console.warn('[SyncPad] Failed to save to local storage:', err);
+    }
+  }
+
+  connectMqtt() {
+    if (!window.mqtt) {
+      console.error('[SyncPad] MQTT library not available');
+      return;
+    }
+
+    if (this.onStatusUpdate) {
+      this.onStatusUpdate({ status: 'connecting' });
+    }
+
+    // Primary broker (EMQX public WebSocket broker, 99.99% uptime)
+    const brokerUrl = 'wss://broker.emqx.io:8084/mqtt';
+    const clientId = `syncpad_${this.deviceInfo.id}_${Math.random().toString(16).substring(2, 8)}`;
+
+    try {
+      this.client = window.mqtt.connect(brokerUrl, {
+        clientId: clientId,
+        clean: true,
+        connectTimeout: 7000,
+        reconnectPeriod: 3000,
+        keepalive: 30
+      });
+
+      const dataTopic = `syncpad/v2/room/${this.roomName}/data`;
+      const presenceTopic = `syncpad/v2/room/${this.roomName}/presence`;
+
+      this.client.on('connect', () => {
+        console.log('[SyncPad] Connected to unified real-time room!');
+        this.isConnected = true;
+
+        if (this.onStatusUpdate) {
+          this.onStatusUpdate({ status: 'connected' });
         }
 
-        this.provider.on('status', event => {
-          if (this.onStatusUpdate) {
-            this.onStatusUpdate({
-              status: event.status,
-              room: this.roomName
+        this.client.subscribe([dataTopic, presenceTopic], (err) => {
+          if (!err) {
+            this.sendPresencePing();
+            this.broadcastMessage({
+              type: 'REQUEST_SYNC',
+              senderId: this.deviceInfo.id
             });
           }
         });
+      });
 
-        this.provider.on('synced', () => {
-          this.triggerDataUpdate();
-        });
-      } catch (err) {
-        console.warn('[SyncPad] WebrtcProvider initialization:', err);
-      }
-    }
+      this.client.on('message', (topic, payload) => {
+        try {
+          const msg = JSON.parse(payload.toString());
+          if (topic === presenceTopic) {
+            this.handlePresenceMessage(msg);
+          } else if (topic === dataTopic) {
+            this.handleIncomingMessage(msg, true);
+          }
+        } catch (e) {
+          console.warn('[SyncPad] Malformed message:', e);
+        }
+      });
 
-    // 4. Data Listeners for Y.Array('links') and Y.Text('notes')
-    const yLinks = this.doc.getArray('links');
-    yLinks.observe(() => {
-      this.triggerLinksUpdate();
-    });
+      this.client.on('error', (err) => {
+        console.warn('[SyncPad] MQTT error:', err);
+      });
 
-    const yNotes = this.doc.getText('notes');
-    yNotes.observe(() => {
-      if (this.onNotesUpdate) {
-        this.onNotesUpdate(yNotes.toString());
-      }
-    });
+      this.client.on('offline', () => {
+        this.isConnected = false;
+        if (this.onStatusUpdate) {
+          this.onStatusUpdate({ status: 'offline' });
+        }
+      });
 
-    // Hash change handler for switching rooms
-    window.addEventListener('hashchange', () => {
-      const newRoom = this.getRoomFromUrl();
-      if (newRoom !== this.roomName) {
-        window.location.reload();
-      }
-    });
-  }
-
-  triggerDataUpdate() {
-    this.triggerLinksUpdate();
-    if (this.onNotesUpdate && this.doc) {
-      this.onNotesUpdate(this.doc.getText('notes').toString());
+      this.client.on('reconnect', () => {
+        if (this.onStatusUpdate) {
+          this.onStatusUpdate({ status: 'connecting' });
+        }
+      });
+    } catch (err) {
+      console.error('[SyncPad] Connect error:', err);
     }
   }
 
-  triggerLinksUpdate() {
-    if (!this.onLinksUpdate || !this.doc) return;
-    const yLinks = this.doc.getArray('links');
-    this.onLinksUpdate(yLinks.toArray());
+  // ==========================================
+  // Presence & Device Tracking
+  // ==========================================
+
+  sendPresencePing() {
+    const payload = {
+      device: this.deviceInfo,
+      timestamp: Date.now()
+    };
+
+    if (this.client && this.isConnected) {
+      this.client.publish(`syncpad/v2/room/${this.roomName}/presence`, JSON.stringify(payload), { qos: 0 });
+    }
+
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage({ type: 'PRESENCE_PING', ...payload });
+    }
+  }
+
+  handlePresenceMessage(msg) {
+    if (!msg.device || msg.device.id === this.deviceInfo.id) return;
+    this.peers.set(msg.device.id, {
+      device: msg.device,
+      lastSeen: Date.now()
+    });
+    this.updatePeerStatus();
+  }
+
+  cleanStalePeers() {
+    const now = Date.now();
+    let changed = false;
+    for (const [id, data] of this.peers.entries()) {
+      if (now - data.lastSeen > 9000) {
+        this.peers.delete(id);
+        changed = true;
+      }
+    }
+    if (changed) {
+      this.updatePeerStatus();
+    }
+  }
+
+  updatePeerStatus() {
+    const activePeers = [this.deviceInfo, ...Array.from(this.peers.values()).map(p => p.device)];
+    if (this.onPeersUpdate) {
+      this.onPeersUpdate({
+        count: activePeers.length,
+        peers: activePeers,
+        currentDevice: this.deviceInfo
+      });
+    }
+  }
+
+  // ==========================================
+  // Message Handling & Replication
+  // ==========================================
+
+  broadcastMessage(message) {
+    message.senderId = this.deviceInfo.id;
+    message.timestamp = Date.now();
+
+    if (this.client && this.isConnected) {
+      this.client.publish(`syncpad/v2/room/${this.roomName}/data`, JSON.stringify(message), { qos: 1 });
+    }
+
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage(message);
+    }
+  }
+
+  handleIncomingMessage(msg, isFromMqtt) {
+    if (!msg || msg.senderId === this.deviceInfo.id) return;
+
+    switch (msg.type) {
+      case 'PRESENCE_PING':
+        if (!isFromMqtt) this.handlePresenceMessage(msg);
+        break;
+
+      case 'REQUEST_SYNC':
+        if (this.links.length > 0 || this.notes.length > 0) {
+          this.broadcastMessage({
+            type: 'SYNC_STATE_RESPONSE',
+            links: this.links,
+            notes: this.notes,
+            targetId: msg.senderId
+          });
+        }
+        break;
+
+      case 'SYNC_STATE_RESPONSE':
+        if (msg.links && Array.isArray(msg.links)) {
+          this.mergeLinks(msg.links);
+        }
+        if (msg.notes && msg.notes.length > 0 && !this.notes) {
+          this.notes = msg.notes;
+          if (this.onNotesUpdate) this.onNotesUpdate(this.notes);
+        }
+        this.saveToLocalStorage();
+        break;
+
+      case 'ADD_LINK':
+        if (msg.link) {
+          const exists = this.links.some(l => l.id === msg.link.id);
+          if (!exists) {
+            this.links.unshift(msg.link);
+            this.saveToLocalStorage();
+            if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+          }
+        }
+        break;
+
+      case 'TOGGLE_LINK':
+        if (msg.linkId) {
+          const link = this.links.find(l => l.id === msg.linkId);
+          if (link) {
+            link.opened = msg.opened;
+            this.saveToLocalStorage();
+            if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+          }
+        }
+        break;
+
+      case 'UPDATE_NOTE':
+        if (msg.linkId) {
+          const link = this.links.find(l => l.id === msg.linkId);
+          if (link) {
+            link.note = msg.note;
+            this.saveToLocalStorage();
+            if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+          }
+        }
+        break;
+
+      case 'REMOVE_LINK':
+        if (msg.linkId) {
+          const idx = this.links.findIndex(l => l.id === msg.linkId);
+          if (idx !== -1) {
+            this.links.splice(idx, 1);
+            this.saveToLocalStorage();
+            if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+          }
+        }
+        break;
+
+      case 'RESTORE_LINK':
+        if (msg.link) {
+          const exists = this.links.some(l => l.id === msg.link.id);
+          if (!exists) {
+            const pos = Math.min(msg.index || 0, this.links.length);
+            this.links.splice(pos, 0, msg.link);
+            this.saveToLocalStorage();
+            if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+          }
+        }
+        break;
+
+      case 'CLEAR_ALL_LINKS':
+        this.links = [];
+        this.saveToLocalStorage();
+        if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+        break;
+
+      case 'UPDATE_RAW_NOTES':
+        this.notes = msg.text || '';
+        this.saveToLocalStorage();
+        if (this.onNotesUpdate) this.onNotesUpdate(this.notes);
+        break;
+    }
+  }
+
+  mergeLinks(remoteLinks) {
+    const localMap = new Map(this.links.map(l => [l.id, l]));
+    remoteLinks.forEach(rl => {
+      if (!localMap.has(rl.id)) {
+        localMap.set(rl.id, rl);
+      }
+    });
+    this.links = Array.from(localMap.values()).sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+    if (this.onLinksUpdate) this.onLinksUpdate(this.links);
   }
 
   // ==========================================
   // Link Operations (Permanent until manually deleted)
   // ==========================================
 
-  /**
-   * Add a new link item
-   */
   addLink(url, note = '') {
-    if (!this.doc) return;
     const cleanUrl = url.trim();
     if (!cleanUrl) return;
 
@@ -238,104 +392,99 @@ class SyncEngine {
       addedBy: this.deviceInfo.name
     };
 
-    const yLinks = this.doc.getArray('links');
-    this.doc.transact(() => {
-      yLinks.insert(0, [linkItem]);
+    this.links.unshift(linkItem);
+    this.saveToLocalStorage();
+    if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+
+    this.broadcastMessage({
+      type: 'ADD_LINK',
+      link: linkItem
     });
 
     return linkItem;
   }
 
-  /**
-   * Toggle opened/checked state (does NOT delete link)
-   */
   toggleLinkOpened(linkId) {
-    if (!this.doc) return;
-    const yLinks = this.doc.getArray('links');
-    const items = yLinks.toArray();
-    const index = items.findIndex(item => item.id === linkId);
-    if (index !== -1) {
-      const updated = { ...items[index], opened: !items[index].opened };
-      this.doc.transact(() => {
-        yLinks.delete(index, 1);
-        yLinks.insert(index, [updated]);
+    const link = this.links.find(l => l.id === linkId);
+    if (link) {
+      link.opened = !link.opened;
+      this.saveToLocalStorage();
+      if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+
+      this.broadcastMessage({
+        type: 'TOGGLE_LINK',
+        linkId: linkId,
+        opened: link.opened
       });
     }
   }
 
-  /**
-   * Update note/tag for a link
-   */
   updateLinkNote(linkId, newNote) {
-    if (!this.doc) return;
-    const yLinks = this.doc.getArray('links');
-    const items = yLinks.toArray();
-    const index = items.findIndex(item => item.id === linkId);
-    if (index !== -1) {
-      const updated = { ...items[index], note: newNote };
-      this.doc.transact(() => {
-        yLinks.delete(index, 1);
-        yLinks.insert(index, [updated]);
+    const link = this.links.find(l => l.id === linkId);
+    if (link) {
+      link.note = newNote;
+      this.saveToLocalStorage();
+      if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+
+      this.broadcastMessage({
+        type: 'UPDATE_NOTE',
+        linkId: linkId,
+        note: newNote
       });
     }
   }
 
-  /**
-   * Manually delete a single link (permanent manual deletion)
-   */
   removeLink(linkId) {
-    if (!this.doc) return;
-    const yLinks = this.doc.getArray('links');
-    const items = yLinks.toArray();
-    const index = items.findIndex(item => item.id === linkId);
-    if (index !== -1) {
-      const removed = items[index];
-      this.deletedHistory.push({ item: removed, index: index });
-      this.doc.transact(() => {
-        yLinks.delete(index, 1);
+    const idx = this.links.findIndex(l => l.id === linkId);
+    if (idx !== -1) {
+      const removed = this.links.splice(idx, 1)[0];
+      this.deletedHistory.push({ item: removed, index: idx });
+      this.saveToLocalStorage();
+      if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+
+      this.broadcastMessage({
+        type: 'REMOVE_LINK',
+        linkId: linkId
       });
+
       return removed;
     }
     return null;
   }
 
-  /**
-   * Undo last manual deletion
-   */
   undoDelete() {
-    if (!this.doc || this.deletedHistory.length === 0) return;
+    if (this.deletedHistory.length === 0) return;
     const last = this.deletedHistory.pop();
-    const yLinks = this.doc.getArray('links');
-    const pos = Math.min(last.index, yLinks.length);
-    this.doc.transact(() => {
-      yLinks.insert(pos, [last.item]);
+    const pos = Math.min(last.index, this.links.length);
+    this.links.splice(pos, 0, last.item);
+    this.saveToLocalStorage();
+    if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+
+    this.broadcastMessage({
+      type: 'RESTORE_LINK',
+      link: last.item,
+      index: pos
     });
   }
 
-  /**
-   * Manually clear all links (requires explicit confirmation)
-   */
   clearAllLinks() {
-    if (!this.doc) return;
-    const yLinks = this.doc.getArray('links');
-    this.doc.transact(() => {
-      yLinks.delete(0, yLinks.length);
+    this.links = [];
+    this.saveToLocalStorage();
+    if (this.onLinksUpdate) this.onLinksUpdate(this.links);
+
+    this.broadcastMessage({
+      type: 'CLEAR_ALL_LINKS'
     });
   }
-
-  // ==========================================
-  // Collaborative Raw Notepad Text
-  // ==========================================
 
   setRawNotes(newText) {
-    if (!this.doc) return;
-    const yNotes = this.doc.getText('notes');
-    const current = yNotes.toString();
-    if (current === newText) return;
+    if (this.notes === newText) return;
+    this.notes = newText;
+    this.saveToLocalStorage();
 
-    this.doc.transact(() => {
-      yNotes.delete(0, current.length);
-      yNotes.insert(0, newText);
+    this.broadcastMessage({
+      type: 'UPDATE_RAW_NOTES',
+      text: newText
     });
   }
 }

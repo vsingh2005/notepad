@@ -31,7 +31,6 @@
     <div class="sync-status-bar" id="sync-status-container">
       <span class="status-dot connected" id="sync-status-dot"></span>
       <span id="sync-status-text">1 device online</span>
-      <span class="room-pill" id="room-name-display" title="Click to share or change room">#collab-room</span>
     </div>
 
     <!-- Action Buttons -->
@@ -209,24 +208,14 @@
         <input type="text" id="share-url-input" class="share-url-input" readonly />
         <button class="btn btn-primary" id="btn-copy-share-url">Copy Link</button>
       </div>
-
-      <div style="border-top: 1px solid var(--border-subtle); padding-top: 14px; margin-top: 4px;">
-        <label style="font-size: 11px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em;">
-          Switch or Create Workspace Room
-        </label>
-        <div style="display: flex; gap: 8px; margin-top: 8px;">
-          <input type="text" id="room-switch-input" class="quick-paste-input" style="border: 1px solid var(--border-subtle); padding: 7px 12px; border-radius: var(--radius-md); font-size: 13px;" placeholder="Room name (e.g. work-links)" />
-          <button class="btn" id="btn-switch-room">Switch</button>
-        </div>
-      </div>
     </div>
   </div>
 
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- Bundled Yjs, WebRTC, and IndexedDB -->
-  <script src="js/yjs-bundle.js"></script>
+  <!-- Bundled MQTT, Yjs, and Storage Engine -->
+  <script src="js/sync-bundle.js"></script>
   <!-- Real-Time Sync Engine -->
   <script src="js/sync.js"></script>
   <!-- UI Controller -->
