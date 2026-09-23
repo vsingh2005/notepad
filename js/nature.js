@@ -18,7 +18,7 @@ class NatureAmbience {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
 
-    this.theme = document.documentElement.getAttribute('data-theme') || 'light';
+    this.theme = document.documentElement.getAttribute('data-theme') || 'sepia';
 
     this.init();
   }

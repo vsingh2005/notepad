@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="sepia">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%232d8a5e%22 stroke-width=%222%22><path d=%22M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z%22/><polyline points=%2214 2 14 8 20 8%22/><line x1=%2216%22 y1=%2213%22 x2=%228%22 y2=%2213%22/><line x1=%2216%22 y1=%2217%22 x2=%228%22 y2=%2217%22/><polyline points=%2210 9 9 9 8 9%22/></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="view-notepad" data-ruling="blank">
+<body class="view-notepad" data-ruling="dots">
 
   <!-- Animated Living Nature Background Canvas -->
   <canvas id="nature-canvas" class="nature-canvas"></canvas>
@@ -72,13 +72,13 @@
       <select id="select-theme" class="custom-select" title="Color Theme">
         <option value="light">Paper Light</option>
         <option value="dark">Dark Slate</option>
-        <option value="sepia">Warm Sepia</option>
+        <option value="sepia" selected>Warm Sepia</option>
         <option value="terminal">Cyber Neon</option>
       </select>
 
       <!-- Font Switcher -->
       <select id="select-font" class="custom-select" title="Typography">
-        <option value="sans">Clean Sans</option>
+        <option value="sans" selected>Clean Sans</option>
         <option value="mono">Monospace</option>
         <option value="serif">Editorial Serif</option>
       </select>
@@ -88,7 +88,7 @@
         <option value="blank">Blank Sheet</option>
         <option value="lined">Lined Paper</option>
         <option value="grid">Grid Pattern</option>
-        <option value="dots">Dot Matrix</option>
+        <option value="dots" selected>Dot Matrix</option>
       </select>
     </div>
   </nav>

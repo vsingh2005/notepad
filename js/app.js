@@ -83,9 +83,9 @@
   }
 
   function loadPreferences() {
-    const theme = localStorage.getItem('syncpad_theme') || 'light';
+    const theme = localStorage.getItem('syncpad_theme') || 'sepia';
     const font = localStorage.getItem('syncpad_font') || 'sans';
-    const ruling = localStorage.getItem('syncpad_ruling') || 'blank';
+    const ruling = localStorage.getItem('syncpad_ruling') || 'dots';
 
     document.documentElement.setAttribute('data-theme', theme);
     document.body.style.setProperty('--font-current', getFontFamily(font));
