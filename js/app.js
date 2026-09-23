@@ -26,9 +26,10 @@
   const linkListTitleCount = document.getElementById('link-list-title-count');
   const paperTextarea = document.getElementById('paper-textarea');
   
-  // Segmented Mode Controls
-  const segmentInteractive = document.getElementById('segment-interactive');
-  const segmentRaw = document.getElementById('segment-raw');
+  // Notebook Tab Navigation Controls
+  const tabNotepad = document.getElementById('tab-notepad');
+  const tabLinks = document.getElementById('tab-links');
+  const tabSplit = document.getElementById('tab-split');
   const linkListView = document.getElementById('link-list-view');
   const rawNotepadView = document.getElementById('raw-notepad-view');
 
@@ -195,9 +196,14 @@
       }
     });
 
-    // 4. View Mode Segmented Controls
-    segmentInteractive.addEventListener('click', () => switchView('interactive'));
-    segmentRaw.addEventListener('click', () => switchView('raw'));
+    // 4. Notebook Tab Navigation Controls
+    if (tabNotepad) tabNotepad.addEventListener('click', () => switchView('notepad'));
+    if (tabLinks) tabLinks.addEventListener('click', () => switchView('links'));
+    if (tabSplit) tabSplit.addEventListener('click', () => switchView('split'));
+
+    // Restore saved view or default to blank notepad
+    const savedView = localStorage.getItem('ringo_view_mode') || 'notepad';
+    switchView(savedView);
 
     // 5. Raw textarea input listener (collaborative typing)
     paperTextarea.addEventListener('input', () => {
@@ -462,19 +468,37 @@
     return card;
   }
 
-  // Switch between Interactive and Raw Notepad views
+  // Switch between Blank Notepad, Link Collector, and Side-by-Side views
   function switchView(mode) {
-    if (mode === 'interactive') {
-      segmentInteractive.classList.add('active');
-      segmentRaw.classList.remove('active');
-      linkListView.style.display = 'flex';
-      rawNotepadView.style.display = 'none';
-    } else {
-      segmentRaw.classList.add('active');
-      segmentInteractive.classList.remove('active');
-      linkListView.style.display = 'none';
-      rawNotepadView.style.display = 'flex';
+    if (mode !== 'notepad' && mode !== 'links' && mode !== 'split') {
+      mode = 'notepad';
+    }
+
+    document.body.classList.remove('view-notepad', 'view-links', 'view-split');
+    document.body.classList.add(`view-${mode}`);
+
+    if (tabNotepad) {
+      tabNotepad.classList.toggle('active', mode === 'notepad');
+      tabNotepad.setAttribute('aria-selected', mode === 'notepad');
+    }
+    if (tabLinks) {
+      tabLinks.classList.toggle('active', mode === 'links');
+      tabLinks.setAttribute('aria-selected', mode === 'links');
+    }
+    if (tabSplit) {
+      tabSplit.classList.toggle('active', mode === 'split');
+      tabSplit.setAttribute('aria-selected', mode === 'split');
+    }
+
+    try {
+      localStorage.setItem('ringo_view_mode', mode);
+    } catch (e) {}
+
+    // Focus active input smoothly
+    if (mode === 'notepad' || mode === 'split') {
       paperTextarea.focus();
+    } else if (mode === 'links') {
+      if (quickPasteInput) quickPasteInput.focus();
     }
   }
 

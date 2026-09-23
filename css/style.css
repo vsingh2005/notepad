@@ -461,9 +461,9 @@ body {
 }
 
 /* ==========================================================================
-   Paper Controls Bar
+   Prominent Notebook Tabs Navigation
    ========================================================================== */
-.paper-controls-bar {
+.main-tabs-container {
   width: 100%;
   max-width: 900px;
   padding: 0 24px 10px;
@@ -472,45 +472,124 @@ body {
   justify-content: space-between;
   flex-wrap: wrap;
   gap: 12px;
+  position: relative;
+  z-index: 2;
 }
 
-.mode-segmented-control {
+.notebook-tabs-group {
   display: inline-flex;
-  background: var(--bg-paper-alt);
+  background: rgba(255, 255, 255, 0.94);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   border: 1px solid var(--border-subtle);
-  padding: 4px;
-  border-radius: var(--radius-lg);
-  gap: 3px;
-}
-
-.segment-btn {
-  border: none;
-  background: transparent;
-  padding: 6px 14px;
-  border-radius: var(--radius-md);
-  font-size: 12px;
-  font-weight: 600;
-  color: var(--text-muted);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
+  border-radius: var(--radius-xl);
+  padding: 5px;
   gap: 6px;
-  transition: var(--transition-smooth);
-}
-
-.segment-btn.active {
-  background: var(--bg-paper);
-  color: var(--primary);
   box-shadow: var(--shadow-sm);
 }
 
-.link-counter-badge {
+[data-theme="dark"] .notebook-tabs-group {
+  background: rgba(18, 36, 26, 0.94);
+}
+
+.notebook-tab-btn {
+  border: none;
+  background: transparent;
+  padding: 8px 18px;
+  border-radius: var(--radius-lg);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: var(--transition-smooth);
+}
+
+.notebook-tab-btn:hover {
+  color: var(--text-main);
+  background: rgba(45, 138, 94, 0.08);
+}
+
+.notebook-tab-btn.active {
+  background: var(--primary);
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(45, 138, 94, 0.3);
+}
+
+.notebook-tab-btn.active .icon {
+  stroke: #ffffff;
+}
+
+.tab-badge {
+  background: rgba(255, 255, 255, 0.25);
+  color: #ffffff;
+  border-radius: var(--radius-full);
+  font-size: 11px;
+  padding: 1px 7px;
+  font-weight: 700;
+}
+
+.notebook-tab-btn:not(.active) .tab-badge {
   background: var(--primary-light);
   color: var(--primary);
-  border-radius: var(--radius-full);
-  font-size: 10px;
-  padding: 2px 7px;
-  font-weight: 700;
+}
+
+/* Multi-View Mode Layouts */
+body.view-notepad #link-list-view,
+body.view-notepad #quick-paste-container,
+body.view-notepad .quick-paste-container {
+  display: none !important;
+}
+
+body.view-notepad #raw-notepad-view {
+  display: flex !important;
+}
+
+body.view-links #raw-notepad-view {
+  display: none !important;
+}
+
+body.view-links #link-list-view,
+body.view-links #quick-paste-container,
+body.view-links .quick-paste-container {
+  display: flex !important;
+}
+
+body.view-split #quick-paste-container,
+body.view-split .quick-paste-container {
+  display: flex !important;
+}
+
+body.view-split .sheet-wrapper,
+body.view-split .main-tabs-container,
+body.view-split .quick-paste-container {
+  max-width: 1200px;
+}
+
+body.view-split .paper-sheet {
+  display: grid !important;
+  grid-template-columns: 1fr 1fr;
+}
+
+body.view-split #raw-notepad-view {
+  display: flex !important;
+  border-right: 1px solid var(--border-subtle);
+}
+
+body.view-split #link-list-view {
+  display: flex !important;
+}
+
+@media (max-width: 840px) {
+  body.view-split .paper-sheet {
+    grid-template-columns: 1fr;
+  }
+  body.view-split #raw-notepad-view {
+    border-right: none;
+    border-bottom: 1px solid var(--border-subtle);
+  }
 }
 
 .canvas-customizers {
