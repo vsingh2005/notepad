@@ -201,8 +201,8 @@
     if (tabLinks) tabLinks.addEventListener('click', () => switchView('links'));
     if (tabSplit) tabSplit.addEventListener('click', () => switchView('split'));
 
-    // Restore saved view or default to blank notepad
-    const savedView = localStorage.getItem('ringo_view_mode') || 'notepad';
+    // Restore saved view or default to link collector
+    const savedView = localStorage.getItem('ringo_view_mode') || 'links';
     switchView(savedView);
 
     // 5. Raw textarea input listener (collaborative typing)
@@ -471,7 +471,7 @@
   // Switch between Blank Notepad, Link Collector, and Side-by-Side views
   function switchView(mode) {
     if (mode !== 'notepad' && mode !== 'links' && mode !== 'split') {
-      mode = 'notepad';
+      mode = 'links';
     }
 
     document.body.classList.remove('view-notepad', 'view-links', 'view-split');
