@@ -419,7 +419,20 @@ class SyncEngine {
   setRawNotes(newText) {
     if (this.notes === newText) return;
     this.notes = newText;
-    this.publishCurrentState();
+    this.saveToLocalStorage();
+
+    // Debounce network broadcast during active typing (200ms)
+    clearTimeout(this.notesDebounceTimer);
+    this.notesDebounceTimer = setTimeout(() => {
+      this.publishCurrentState();
+    }, 200);
+  }
+
+  flushNotesNow() {
+    if (this.notesDebounceTimer) {
+      clearTimeout(this.notesDebounceTimer);
+      this.publishCurrentState();
+    }
   }
 }
 

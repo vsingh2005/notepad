@@ -73,6 +73,12 @@
     setupSyncEngine();
     updateShareUrl();
     statDeviceName.textContent = window.syncEngine.deviceInfo.name;
+
+    // Initialize Blank Notepad text from local/cloud storage
+    if (window.syncEngine.notes) {
+      paperTextarea.value = window.syncEngine.notes;
+      updateTextStats(window.syncEngine.notes);
+    }
   }
 
   function loadPreferences() {
@@ -106,9 +112,19 @@
     };
 
     sync.onNotesUpdate = (text) => {
-      if (!isEditingTextarea) {
-        paperTextarea.value = text;
-        updateTextStats(text);
+      if (!isEditingTextarea && paperTextarea.value !== text) {
+        const start = paperTextarea.selectionStart;
+        const end = paperTextarea.selectionEnd;
+        const isFocused = document.activeElement === paperTextarea;
+
+        paperTextarea.value = text || '';
+        
+        if (isFocused && start !== null && end !== null) {
+          try {
+            paperTextarea.setSelectionRange(start, end);
+          } catch(e) {}
+        }
+        updateTextStats(paperTextarea.value);
       }
     };
 
@@ -189,7 +205,15 @@
       const text = paperTextarea.value;
       window.syncEngine.setRawNotes(text);
       updateTextStats(text);
-      setTimeout(() => { isEditingTextarea = false; }, 200);
+      setTimeout(() => { isEditingTextarea = false; }, 300);
+    });
+
+    paperTextarea.addEventListener('blur', () => {
+      window.syncEngine.flushNotesNow();
+    });
+
+    window.addEventListener('beforeunload', () => {
+      window.syncEngine.flushNotesNow();
     });
 
     // 6. Batch Actions
