@@ -29,26 +29,6 @@ Ringo's Notepad syncs automatically in real time across any browser and device: 
 
 ---
 
-## How to Deploy to GitHub Pages
-
-1. Push this repository to your GitHub account:
-   ```bash
-   git init
-   git add .
-   git commit -m "Deploy Ringo's Notepad to GitHub Pages"
-   git branch -M main
-   git remote add origin https://github.com/<YOUR-USERNAME>/<REPO-NAME>.git
-   git push -u origin main
-   ```
-2. On GitHub, go to your repository's **Settings** ➔ **Pages**.
-3. Under **Build and deployment**, select **Deploy from a branch**, set Branch to `main` and folder to `/ (root)`, and click **Save**.
-4. Open the generated GitHub Pages URL on any device or browser:
-   ```
-   https://<YOUR-USERNAME>.github.io/<REPO-NAME>/
-   ```
-
----
-
 ## Live Universal Workflow
 
 1. Open `https://vsingh2005.github.io/notepad/` on your phone, tablet, Mac, or Windows PC.
