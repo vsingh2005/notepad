@@ -393,6 +393,7 @@
 
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(item.domain)}&sz=32`;
     const formattedTime = formatTimestamp(item.timestamp);
+    const fullDateTitle = item.timestamp ? new Date(item.timestamp).toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'full', timeStyle: 'long' }) : '';
     const badgeClass = getDomainBadgeClass(item.domain);
 
     card.innerHTML = `
@@ -406,7 +407,7 @@
         <div class="link-details">
           <div class="link-badge-row">
             <span class="domain-badge ${badgeClass}">${escapeHtml(item.domain)}</span>
-            <span class="link-time">${formattedTime}</span>
+            <span class="link-time" ${fullDateTitle ? `title="${escapeHtml(fullDateTitle)}"` : ''}>${formattedTime}</span>
           </div>
           <a class="link-url-text" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.url)}">
             ${escapeHtml(item.url)}
@@ -579,7 +580,20 @@
   function formatTimestamp(ts) {
     if (!ts) return '';
     const date = new Date(ts);
-    return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    if (isNaN(date.getTime())) return '';
+    try {
+      return date.toLocaleString('en-US', {
+        timeZone: 'America/Chicago',
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+        hour: 'numeric',
+        minute: '2-digit',
+        timeZoneName: 'short'
+      });
+    } catch (e) {
+      return date.toLocaleString('en-US', { timeZone: 'America/Chicago' });
+    }
   }
 
   function escapeHtml(str) {

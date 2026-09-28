@@ -850,6 +850,7 @@ body.view-split .paper-footer-bar {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Dynamic Domain Badges */
@@ -900,6 +901,7 @@ body.view-split .paper-footer-bar {
 .link-time {
   font-size: 11px;
   color: var(--text-subtle);
+  white-space: nowrap;
 }
 
 .link-url-text {
