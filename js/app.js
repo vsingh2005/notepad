@@ -271,7 +271,7 @@
   try {
     attachmentsChannel = new BroadcastChannel('syncpad-attachments-bc');
     attachmentsChannel.onmessage = async (e) => {
-      if (e.data && e.data.type === 'ATTACHMENTS_CHANGED') {
+      if (e.data && (e.data.type === 'ATTACHMENTS_CHANGED' || e.data.type === 'ATTACHMENTS_MANIFEST_UPDATE')) {
         await loadAttachments(false);
       }
     };
@@ -1181,6 +1181,10 @@
         window.syncEngine.deleteAttachment(id);
       }
 
+      if (mediaLightboxModal && mediaLightboxModal.classList.contains('active') && lightboxFilename && lightboxFilename.textContent === removed.name) {
+        closeLightbox();
+      }
+
       showToastWithUndo(`Deleted "${removed.name}"`, async () => {
         const last = deletedAttachmentHistory.pop();
         if (last) {
@@ -1189,6 +1193,9 @@
           renderAttachments();
           updateAttachmentStats();
           broadcastAttachmentsChange();
+          if (window.syncEngine && window.syncEngine.syncAttachment) {
+            window.syncEngine.syncAttachment(last.item);
+          }
         }
       });
     }
@@ -1246,10 +1253,16 @@
     renderAttachments();
     updateAttachmentStats();
     broadcastAttachmentsChange();
+    if (window.syncEngine && window.syncEngine.clearAllAttachments) {
+      window.syncEngine.clearAllAttachments();
+    }
 
     showToastWithUndo(`Deleted ${previous.length} attachments`, async () => {
       for (const item of previous) {
         await AttachmentDB.put(item);
+        if (window.syncEngine && window.syncEngine.syncAttachment) {
+          window.syncEngine.syncAttachment(item);
+        }
       }
       currentAttachments = previous;
       renderAttachments();

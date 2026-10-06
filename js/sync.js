@@ -484,6 +484,17 @@ class SyncEngine {
 
     // Synchronize into local IndexedDB
     if (window.AttachmentDB) {
+      const incomingIds = new Set(msg.attachments.map(a => a.id));
+      const localStored = await window.AttachmentDB.getAll();
+
+      // 1. Delete any local attachments that were removed on the other device
+      for (const localItem of localStored) {
+        if (!incomingIds.has(localItem.id)) {
+          await window.AttachmentDB.delete(localItem.id);
+        }
+      }
+
+      // 2. Add or update items from incoming manifest
       for (const item of msg.attachments) {
         const existing = await window.AttachmentDB.get(item.id);
         if (!existing) {
@@ -507,6 +518,9 @@ class SyncEngine {
           if (!item.isSmallFile && localItem.sourceDeviceId && localItem.sourceDeviceId !== this.deviceInfo.id) {
             this.requestAttachmentFullData(item.id, localItem.sourceDeviceId);
           }
+        } else if (item.note !== undefined && existing.note !== item.note) {
+          existing.note = item.note;
+          await window.AttachmentDB.put(existing);
         }
       }
     }
@@ -670,6 +684,26 @@ class SyncEngine {
 
     if (this.broadcastChannel) {
       this.broadcastChannel.postMessage({ type: 'ATTACHMENTS_MANIFEST_UPDATE', attachments: this.attachmentsManifest });
+    }
+  }
+
+  clearAllAttachments() {
+    this.attachmentsManifest = [];
+    try {
+      localStorage.setItem('syncpad_attachments_manifest', '[]');
+    } catch (e) {}
+
+    if (this.client && this.isConnected) {
+      const payload = {
+        attachments: [],
+        lastUpdatedAt: Date.now(),
+        senderId: this.deviceInfo.id
+      };
+      this.client.publish(this.attachmentsTopic, JSON.stringify(payload), { retain: true, qos: 1 });
+    }
+
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage({ type: 'ATTACHMENTS_MANIFEST_UPDATE', attachments: [] });
     }
   }
 }
