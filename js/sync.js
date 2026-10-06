@@ -35,6 +35,15 @@ class SyncEngine {
     // Dedicated cloud-retained topics
     this.stateTopic = 'syncpad/v3/workspace/state';
     this.presenceTopic = 'syncpad/v3/workspace/presence';
+    this.attachmentsTopic = 'syncpad/v3/workspace/attachments/manifest';
+    this.reqTopic = 'syncpad/v3/workspace/attachments/req';
+    this.chunkTopic = 'syncpad/v3/workspace/attachments/chunk';
+
+    // Attachments cross-device sync state
+    this.attachmentsManifest = [];
+    this.incomingChunks = new Map(); // attachmentId -> { chunks, totalChunks, received, meta }
+    this.onAttachmentsUpdate = null;
+    this.onAttachmentDataReceived = null;
   }
 
   detectDevice() {
@@ -114,6 +123,14 @@ class SyncEngine {
         if (this.onLinksUpdate) this.onLinksUpdate(this.links);
         if (this.onNotesUpdate) this.onNotesUpdate(this.notes);
       }
+
+      const savedAtt = localStorage.getItem('syncpad_attachments_manifest');
+      if (savedAtt) {
+        const parsedAtt = JSON.parse(savedAtt);
+        if (Array.isArray(parsedAtt)) {
+          this.attachmentsManifest = parsedAtt;
+        }
+      }
     } catch (err) {
       console.warn('[SyncPad] Failed to read localStorage:', err);
     }
@@ -165,10 +182,19 @@ class SyncEngine {
           this.onStatusUpdate({ status: 'connected' });
         }
 
-        // Subscribe to state & presence topics
-        this.client.subscribe([this.stateTopic, this.presenceTopic], { qos: 1 }, (err) => {
+        // Subscribe to state, presence, and attachment topics
+        const myId = this.deviceInfo.id;
+        const subTopics = [
+          this.stateTopic,
+          this.presenceTopic,
+          this.attachmentsTopic,
+          `${this.reqTopic}/${myId}`,
+          `${this.chunkTopic}/${myId}/+`
+        ];
+
+        this.client.subscribe(subTopics, { qos: 1 }, (err) => {
           if (!err) {
-            // Broker will immediately deliver retained state if available
+            // Broker will immediately deliver retained state and attachments if available
             this.sendPresencePing();
           }
         });
@@ -181,6 +207,12 @@ class SyncEngine {
             this.applyIncomingState(msg, true);
           } else if (topic === this.presenceTopic) {
             this.handlePresenceMessage(msg);
+          } else if (topic === this.attachmentsTopic) {
+            this.handleIncomingAttachmentsManifest(msg);
+          } else if (topic.startsWith(`${this.reqTopic}/${this.deviceInfo.id}`)) {
+            this.handleAttachmentDataRequest(msg);
+          } else if (topic.startsWith(`${this.chunkTopic}/${this.deviceInfo.id}`)) {
+            this.handleIncomingAttachmentChunk(msg);
           }
         } catch (e) {
           console.warn('[SyncPad] Message parse error:', e);
@@ -435,6 +467,209 @@ class SyncEngine {
     if (this.notesDebounceTimer) {
       clearTimeout(this.notesDebounceTimer);
       this.publishCurrentState();
+    }
+  }
+
+  // ==========================================
+  // Cross-Device Attachment Synchronization
+  // ==========================================
+
+  async handleIncomingAttachmentsManifest(msg) {
+    if (!msg || !Array.isArray(msg.attachments)) return;
+    
+    this.attachmentsManifest = msg.attachments;
+    try {
+      localStorage.setItem('syncpad_attachments_manifest', JSON.stringify(msg.attachments));
+    } catch (e) {}
+
+    // Synchronize into local IndexedDB
+    if (window.AttachmentDB) {
+      for (const item of msg.attachments) {
+        const existing = await window.AttachmentDB.get(item.id);
+        if (!existing) {
+          // New attachment arrived from another device!
+          const localItem = {
+            id: item.id,
+            name: item.name,
+            type: item.type,
+            category: item.category,
+            size: item.size,
+            sizeFormatted: item.sizeFormatted,
+            timestamp: item.timestamp,
+            note: item.note || '',
+            dataUrl: item.thumbnail || (item.isSmallFile ? item.dataUrl : ''),
+            isThumbnailOnly: !item.isSmallFile && !item.hasFullData,
+            sourceDeviceId: item.sourceDeviceId || msg.senderId
+          };
+          await window.AttachmentDB.put(localItem);
+
+          // Request full data from source device if it was a large file
+          if (!item.isSmallFile && localItem.sourceDeviceId && localItem.sourceDeviceId !== this.deviceInfo.id) {
+            this.requestAttachmentFullData(item.id, localItem.sourceDeviceId);
+          }
+        }
+      }
+    }
+
+    if (this.onAttachmentsUpdate) {
+      this.onAttachmentsUpdate(this.attachmentsManifest);
+    }
+  }
+
+  requestAttachmentFullData(attachmentId, targetPeerId) {
+    if (!this.client || !this.isConnected || !targetPeerId) return;
+    const reqPayload = {
+      attachmentId: attachmentId,
+      requesterId: this.deviceInfo.id,
+      timestamp: Date.now()
+    };
+    this.client.publish(`${this.reqTopic}/${targetPeerId}`, JSON.stringify(reqPayload), { qos: 1 });
+  }
+
+  async handleAttachmentDataRequest(req) {
+    if (!req || !req.attachmentId || !req.requesterId) return;
+    if (!window.AttachmentDB) return;
+
+    const item = await window.AttachmentDB.get(req.attachmentId);
+    if (!item || !item.dataUrl) return;
+
+    this.streamAttachmentChunks(item, req.requesterId);
+  }
+
+  streamAttachmentChunks(item, targetPeerId) {
+    if (!this.client || !this.isConnected) return;
+    const dataUrl = item.dataUrl;
+    const chunkSize = 28672; // 28 KB chunks
+    const totalChunks = Math.ceil(dataUrl.length / chunkSize);
+
+    for (let i = 0; i < totalChunks; i++) {
+      const chunkData = dataUrl.substring(i * chunkSize, (i + 1) * chunkSize);
+      const packet = {
+        attachmentId: item.id,
+        name: item.name,
+        type: item.type,
+        category: item.category,
+        size: item.size,
+        sizeFormatted: item.sizeFormatted,
+        timestamp: item.timestamp,
+        note: item.note || '',
+        chunkIndex: i,
+        totalChunks: totalChunks,
+        chunkData: chunkData
+      };
+
+      setTimeout(() => {
+        if (this.client && this.isConnected) {
+          this.client.publish(`${this.chunkTopic}/${targetPeerId}/${item.id}`, JSON.stringify(packet), { qos: 1 });
+        }
+      }, i * 40);
+    }
+  }
+
+  async handleIncomingAttachmentChunk(packet) {
+    if (!packet || !packet.attachmentId) return;
+    const attId = packet.attachmentId;
+
+    if (!this.incomingChunks.has(attId)) {
+      this.incomingChunks.set(attId, {
+        chunks: new Array(packet.totalChunks),
+        totalChunks: packet.totalChunks,
+        received: 0,
+        meta: packet
+      });
+    }
+
+    const state = this.incomingChunks.get(attId);
+    if (!state.chunks[packet.chunkIndex]) {
+      state.chunks[packet.chunkIndex] = packet.chunkData;
+      state.received++;
+    }
+
+    if (state.received === state.totalChunks) {
+      // Reassembly complete!
+      const fullDataUrl = state.chunks.join('');
+      this.incomingChunks.delete(attId);
+
+      if (window.AttachmentDB) {
+        const existing = await window.AttachmentDB.get(attId);
+        const fullItem = {
+          id: attId,
+          name: packet.name,
+          type: packet.type,
+          category: packet.category,
+          size: packet.size,
+          sizeFormatted: packet.sizeFormatted,
+          timestamp: packet.timestamp,
+          note: packet.note || (existing ? existing.note : ''),
+          dataUrl: fullDataUrl,
+          isThumbnailOnly: false
+        };
+        await window.AttachmentDB.put(fullItem);
+
+        if (this.onAttachmentDataReceived) {
+          this.onAttachmentDataReceived(fullItem);
+        }
+      }
+    }
+  }
+
+  syncAttachment(item, thumbnailDataUrl) {
+    const isSmallFile = (item.size && item.size < 65536);
+    const manifestEntry = {
+      id: item.id,
+      name: item.name,
+      type: item.type,
+      category: item.category,
+      size: item.size,
+      sizeFormatted: item.sizeFormatted,
+      timestamp: item.timestamp,
+      note: item.note || '',
+      thumbnail: thumbnailDataUrl || (item.category === 'image' && isSmallFile ? item.dataUrl : ''),
+      dataUrl: isSmallFile ? item.dataUrl : '',
+      isSmallFile: isSmallFile,
+      hasFullData: true,
+      sourceDeviceId: this.deviceInfo.id
+    };
+
+    this.attachmentsManifest = this.attachmentsManifest.filter(a => a.id !== item.id);
+    this.attachmentsManifest.unshift(manifestEntry);
+
+    try {
+      localStorage.setItem('syncpad_attachments_manifest', JSON.stringify(this.attachmentsManifest));
+    } catch (e) {}
+
+    // Publish to cloud broker with retain = true
+    if (this.client && this.isConnected) {
+      const payload = {
+        attachments: this.attachmentsManifest,
+        lastUpdatedAt: Date.now(),
+        senderId: this.deviceInfo.id
+      };
+      this.client.publish(this.attachmentsTopic, JSON.stringify(payload), { retain: true, qos: 1 });
+    }
+
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage({ type: 'ATTACHMENTS_MANIFEST_UPDATE', attachments: this.attachmentsManifest });
+    }
+  }
+
+  deleteAttachment(id) {
+    this.attachmentsManifest = this.attachmentsManifest.filter(a => a.id !== id);
+    try {
+      localStorage.setItem('syncpad_attachments_manifest', JSON.stringify(this.attachmentsManifest));
+    } catch (e) {}
+
+    if (this.client && this.isConnected) {
+      const payload = {
+        attachments: this.attachmentsManifest,
+        lastUpdatedAt: Date.now(),
+        senderId: this.deviceInfo.id
+      };
+      this.client.publish(this.attachmentsTopic, JSON.stringify(payload), { retain: true, qos: 1 });
+    }
+
+    if (this.broadcastChannel) {
+      this.broadcastChannel.postMessage({ type: 'ATTACHMENTS_MANIFEST_UPDATE', attachments: this.attachmentsManifest });
     }
   }
 }

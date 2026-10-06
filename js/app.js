@@ -196,6 +196,22 @@
       });
     },
 
+    async get(id) {
+      const db = await this.getDb();
+      if (!db) return null;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction('attachments', 'readonly');
+          const store = tx.objectStore('attachments');
+          const req = store.get(id);
+          req.onsuccess = () => resolve(req.result || null);
+          req.onerror = () => resolve(null);
+        } catch (e) {
+          resolve(null);
+        }
+      });
+    },
+
     async clear() {
       const db = await this.getDb();
       if (!db) return false;
@@ -212,6 +228,43 @@
       });
     }
   };
+
+  // Expose to global for SyncEngine cross-device file transfer
+  window.AttachmentDB = AttachmentDB;
+
+  function generateThumbnail(dataUrl, category) {
+    return new Promise((resolve) => {
+      if (category !== 'image' || !dataUrl) return resolve(null);
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const maxDim = 320;
+          let w = img.width;
+          let h = img.height;
+          if (w > maxDim || h > maxDim) {
+            if (w > h) {
+              h = Math.round((h * maxDim) / w);
+              w = maxDim;
+            } else {
+              w = Math.round((w * maxDim) / h);
+              h = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(w, 1);
+          canvas.height = Math.max(h, 1);
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const thumb = canvas.toDataURL('image/jpeg', 0.65);
+          resolve(thumb);
+        } catch (e) {
+          resolve(null);
+        }
+      };
+      img.onerror = () => resolve(null);
+      img.src = dataUrl;
+    });
+  }
 
   // Cross-Tab Attachment Synchronization
   let attachmentsChannel = null;
@@ -319,6 +372,15 @@
       }
     };
 
+    sync.onAttachmentsUpdate = async (manifest) => {
+      await loadAttachments(false);
+    };
+
+    sync.onAttachmentDataReceived = async (fullItem) => {
+      await loadAttachments(false);
+      showToast(`Synced "${fullItem.name}" from another device!`);
+    };
+
     sync.init();
   }
 
@@ -375,6 +437,16 @@
     if (tabLinks) tabLinks.addEventListener('click', () => switchView('links'));
     if (tabSplit) tabSplit.addEventListener('click', () => switchView('split'));
     if (tabAttachments) tabAttachments.addEventListener('click', () => switchView('attachments'));
+
+    // Mobile Appearance Drawer Toggle
+    const btnToggleCustomizers = document.getElementById('btn-toggle-customizers');
+    const canvasCustomizers = document.getElementById('canvas-customizers');
+    if (btnToggleCustomizers && canvasCustomizers) {
+      btnToggleCustomizers.addEventListener('click', () => {
+        canvasCustomizers.classList.toggle('active');
+        btnToggleCustomizers.classList.toggle('active');
+      });
+    }
 
     // Set 'split' (side-by-side) as default when site is opened
     if (localStorage.getItem('ringo_default_sidebyside_v2') !== 'true') {
@@ -886,11 +958,16 @@
           note: ''
         };
 
+        const thumbnail = await generateThumbnail(dataUrl, category);
         await AttachmentDB.put(item);
+        currentAttachments = currentAttachments.filter(a => a.id !== item.id);
         currentAttachments.unshift(item);
         renderAttachments();
         updateAttachmentStats();
         broadcastAttachmentsChange();
+        if (window.syncEngine && window.syncEngine.syncAttachment) {
+          window.syncEngine.syncAttachment(item, thumbnail);
+        }
         showToast(`Attached "${file.name}" (${item.sizeFormatted})`);
       };
 
@@ -1023,6 +1100,9 @@
         item.note = noteInput.value.trim();
         await AttachmentDB.put(item);
         broadcastAttachmentsChange();
+        if (window.syncEngine && window.syncEngine.syncAttachment) {
+          window.syncEngine.syncAttachment(item);
+        }
       });
     }
 
@@ -1097,6 +1177,9 @@
       renderAttachments();
       updateAttachmentStats();
       broadcastAttachmentsChange();
+      if (window.syncEngine && window.syncEngine.deleteAttachment) {
+        window.syncEngine.deleteAttachment(id);
+      }
 
       showToastWithUndo(`Deleted "${removed.name}"`, async () => {
         const last = deletedAttachmentHistory.pop();

@@ -26,8 +26,8 @@ Ringo's Notepad syncs automatically in real time across any browser and device: 
   - Separate **Attachments** tab at the top (kept distinct from the side-by-side notepad view) for uploading and organizing pictures, videos, audio clips, and documents.
   - **Drag & Drop Anywhere**: Drag files from your computer directly onto the window or dropzone to upload.
   - **Clipboard Paste**: Paste screenshots or copied images (<kbd>Cmd/Ctrl + V</kbd>) directly into attachments.
-  - **Size Limit Protection**: Clearly stated **15 MB** per-file size limit with real-time validation.
-  - **Permanent IndexedDB Storage**: Media files are stored securely and permanently in browser IndexedDB with cross-tab sync.
+  - **Size Limit Protection**: Clearly stated **75 MB** per-file size limit (optimized for modern 48MP iPhone photos, HEIC, ProRAW, and media clips) with real-time validation.
+  - **Cross-Device Attachment Sync & IndexedDB Storage**: Media files sync across all devices via retained MQTT manifests & chunked P2P streaming, stored securely and permanently in browser IndexedDB.
   - **Media Previews & Lightbox**: Fullscreen lightbox player for pictures and videos, audio playback controls, original file download, and customizable captions/notes.
 - **Blank Typable Sheet**:
   - Switch anytime to **Blank Notepad** for freeform, collaborative text editing with debounced cloud persistence and cursor preservation.
