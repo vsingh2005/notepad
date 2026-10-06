@@ -8,7 +8,7 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%232d8a5e%22 stroke-width=%222%22><path d=%22M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z%22/><polyline points=%2214 2 14 8 20 8%22/><line x1=%2216%22 y1=%2213%22 x2=%228%22 y2=%2213%22/><line x1=%2216%22 y1=%2217%22 x2=%228%22 y2=%2217%22/><polyline points=%2210 9 9 9 8 9%22/></svg>">
   <link rel="stylesheet" href="css/style.css">
 </head>
-<body class="view-links" data-ruling="dots">
+<body class="view-split" data-ruling="dots">
 
   <!-- Animated Living Nature Background Canvas -->
   <canvas id="nature-canvas" class="nature-canvas"></canvas>
@@ -38,6 +38,10 @@
 
     <!-- Action Buttons -->
     <div class="header-actions">
+      <button class="btn" id="btn-header-attach" title="Attach pictures, videos, or files (Max 75 MB • iPhone 48MP supported)">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+        <span>Attach</span>
+      </button>
       <button class="btn btn-ambience active" id="btn-toggle-ambience" title="Toggle Nature Ambience Animation">
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 22C6.5 22 2 17.5 2 12c0-5 4-9.5 9-10 .5 0 1 .5 1 1 0 6 4 10 10 10 .5 0 1 .5 1 1 0 5.5-4.5 10-10 10z"></path></svg>
         <span>Ambience</span>
@@ -52,7 +56,7 @@
   <!-- Prominent Notebook Navigation Tabs Bar -->
   <nav class="main-tabs-container">
     <div class="notebook-tabs-group" role="tablist" aria-label="Notepad Views">
-      <button class="notebook-tab-btn active" id="tab-links" type="button" role="tab" aria-selected="true">
+      <button class="notebook-tab-btn" id="tab-links" type="button" role="tab" aria-selected="false">
         <svg class="icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
         <span>Link Collector</span>
         <span class="tab-badge" id="link-count-badge">0</span>
@@ -61,9 +65,14 @@
         <svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
         <span>Blank Notepad</span>
       </button>
-      <button class="notebook-tab-btn" id="tab-split" type="button" role="tab" aria-selected="false">
+      <button class="notebook-tab-btn active" id="tab-split" type="button" role="tab" aria-selected="true">
         <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="12" y1="3" x2="12" y2="21"></line></svg>
         <span>Side-by-Side</span>
+      </button>
+      <button class="notebook-tab-btn" id="tab-attachments" type="button" role="tab" aria-selected="false">
+        <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+        <span>Attachments</span>
+        <span class="tab-badge" id="attachment-count-badge">0</span>
       </button>
     </div>
 
@@ -181,12 +190,103 @@
         ></textarea>
       </div>
 
+      <!-- View 3: Dedicated Attachments & Media Page (Hidden in Side-by-Side, active via Attachments tab) -->
+      <div class="attachments-view" id="attachments-view">
+        <div class="attachments-header">
+          <div class="attachments-header-title-wrap">
+            <div class="attachments-header-title">
+              <span>Attachments & Media</span>
+              <span id="attachments-title-count"></span>
+            </div>
+            <div class="attachments-header-subtitle">
+              Upload pictures, videos, audio, and documents with permanent browser storage
+            </div>
+          </div>
+          <div class="attachments-actions">
+            <button class="btn btn-primary" id="btn-upload-attachments" title="Upload files">
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>
+              <span>Upload Files</span>
+            </button>
+            <button class="btn" id="btn-download-all-attachments" title="Download all attachments">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+              <span>Download All</span>
+            </button>
+            <button class="btn" id="btn-clear-all-attachments" title="Delete all attachments">
+              <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+              <span>Delete All</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Size Limit & Storage Notice Banner -->
+        <div class="attachment-limit-banner">
+          <div class="limit-banner-icon">
+            <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+          </div>
+          <div class="limit-banner-content">
+            <span class="limit-banner-title">Size Limit Notice:</span>
+            <span>Maximum file size is <strong>75 MB</strong> per attachment (optimized to easily handle full-resolution 48MP iPhone photos, HEIC, Apple ProRAW, and 4K clips). Files are stored permanently in browser IndexedDB.</span>
+          </div>
+          <div class="limit-banner-badge" id="storage-usage-badge">0 B used</div>
+        </div>
+
+        <!-- Drag & Drop Upload Zone -->
+        <div class="attachment-dropzone" id="attachment-dropzone">
+          <input type="file" id="attachment-file-input" multiple accept="image/*,video/*,audio/*,.heic,.heif,.pdf,.txt,.md,.doc,.docx" style="display: none;" />
+          <div class="dropzone-icon">
+            <svg class="icon icon-xl" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>
+          </div>
+          <div class="dropzone-title">Drag & drop pictures, videos, or files here</div>
+          <div class="dropzone-subtitle">or <button type="button" class="dropzone-browse-link" id="dropzone-browse-btn">browse your device</button> (Paste via <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd> supported)</div>
+          <div class="dropzone-hints">
+            <span class="hint-pill">Pictures: PNG, JPG, HEIC, WebP, SVG</span>
+            <span class="hint-pill">Videos: MP4, WebM, MOV</span>
+            <span class="hint-pill">Audio: MP3, WAV, M4A</span>
+            <span class="hint-pill">Docs: PDF, TXT, MD</span>
+            <span class="hint-pill limit-pill">Max 75 MB / file (iPhone 48MP supported)</span>
+          </div>
+        </div>
+
+        <!-- Filter & Search Toolbar -->
+        <div class="attachments-toolbar" id="attachments-toolbar">
+          <div class="attachment-filter-pills" role="tablist">
+            <button class="filter-pill active" data-filter="all">All <span class="filter-count" id="count-all">0</span></button>
+            <button class="filter-pill" data-filter="image">Pictures <span class="filter-count" id="count-image">0</span></button>
+            <button class="filter-pill" data-filter="video">Videos <span class="filter-count" id="count-video">0</span></button>
+            <button class="filter-pill" data-filter="audio">Audio <span class="filter-count" id="count-audio">0</span></button>
+            <button class="filter-pill" data-filter="document">Documents <span class="filter-count" id="count-document">0</span></button>
+          </div>
+          <div class="attachment-search-box">
+            <input type="text" id="attachment-search-input" class="attachment-search-input" placeholder="Search attachments..." autocomplete="off" spellcheck="false" />
+          </div>
+        </div>
+
+        <!-- Dynamic Attachments Cards Grid -->
+        <div class="attachments-cards-grid" id="attachments-cards-grid">
+          <!-- Populated dynamically by app.js -->
+        </div>
+
+        <!-- Empty State Placeholder -->
+        <div class="empty-attachments-placeholder" id="empty-attachments-placeholder">
+          <div class="empty-icon-wrap">
+            <svg class="icon icon-lg" viewBox="0 0 24 24" style="width: 28px; height: 28px;">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+            </svg>
+          </div>
+          <div class="empty-title">Your attachments sheet is empty</div>
+          <div class="empty-subtitle">
+            Drag in photos, videos, audio clips, or documents, paste from clipboard (<kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd>), or click <strong>Upload Files</strong> above (max 75 MB per file, handles 48MP iPhone photos).
+          </div>
+        </div>
+      </div>
+
       <!-- Bottom Paper Status Bar -->
       <footer class="paper-footer-bar">
         <div class="footer-stats">
           <span id="stat-link-count">0 links</span>
           <span id="stat-word-count">0 words</span>
           <span id="stat-char-count">0 chars</span>
+          <span id="stat-attachment-count">0 attachments</span>
         </div>
         <div class="footer-meta">
           <span>Active Device: <strong id="stat-device-name">Detecting...</strong></span>
@@ -196,6 +296,39 @@
       </footer>
     </div>
   </main>
+
+  <!-- Fullscreen Media Lightbox Modal -->
+  <div class="modal-overlay media-lightbox-overlay" id="media-lightbox-modal">
+    <div class="lightbox-container">
+      <div class="lightbox-header">
+        <div class="lightbox-info">
+          <span class="lightbox-title" id="lightbox-filename">Media Preview</span>
+          <span class="lightbox-meta" id="lightbox-filemeta"></span>
+        </div>
+        <div class="lightbox-actions">
+          <a class="btn btn-primary" id="lightbox-download-btn" download>
+            <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <span>Download</span>
+          </a>
+          <button class="btn-close-modal" id="lightbox-close-btn" aria-label="Close preview">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+      </div>
+      <div class="lightbox-body" id="lightbox-content-wrap">
+        <!-- Rendered dynamically -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Full Window Drag & Drop Overlay -->
+  <div class="global-drag-overlay" id="global-drag-overlay">
+    <div class="global-drag-box">
+      <svg class="icon icon-xl" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+      <div class="global-drag-title">Drop attachments to add</div>
+      <div class="global-drag-subtitle">Pictures, videos, audio, or files (Max 75 MB • iPhone 48MP supported)</div>
+    </div>
+  </div>
 
   <!-- Share & QR Code Modal Dialog -->
   <div class="modal-overlay" id="share-modal">

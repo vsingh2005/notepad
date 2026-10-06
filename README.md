@@ -20,6 +20,15 @@ Ringo's Notepad syncs automatically in real time across any browser and device: 
   - Check off links as you review them, or delete with 1-click.
   - Inline editable notes and tags for each link that sync across devices in real time.
   - Batch actions: **Open All**, **Copy All**, and **Delete All**.
+- **Side-by-Side Mode by Default**:
+  - The site opens in **Side-by-Side** view by default, displaying both the **Link Collector** and **Blank Notepad** on screen simultaneously for seamless typing and link management.
+- **Dedicated Attachments & Media Page**:
+  - Separate **Attachments** tab at the top (kept distinct from the side-by-side notepad view) for uploading and organizing pictures, videos, audio clips, and documents.
+  - **Drag & Drop Anywhere**: Drag files from your computer directly onto the window or dropzone to upload.
+  - **Clipboard Paste**: Paste screenshots or copied images (<kbd>Cmd/Ctrl + V</kbd>) directly into attachments.
+  - **Size Limit Protection**: Up to **75 MB** per-file size limit with real-time validation (handles modern 48MP iPhone photos, HEIC, Apple ProRAW, and media).
+  - **Permanent IndexedDB Storage**: Media files are stored securely and permanently in browser IndexedDB with cross-tab sync.
+  - **Media Previews & Lightbox**: Fullscreen lightbox player for pictures and videos, audio playback controls, original file download, and customizable captions/notes.
 - **Blank Typable Sheet**:
   - Switch anytime to **Blank Notepad** for freeform, collaborative text editing with debounced cloud persistence and cursor preservation.
   - Leafy pastel green color palette, responsive paper canvas, custom rulings (Blank, Lined, Grid, Dot Matrix), and multiple themes (Paper Light, Dark Moss, Warm Sepia, Cyber Neon).

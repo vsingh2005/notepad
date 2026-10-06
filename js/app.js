@@ -13,8 +13,20 @@
     trash: `<svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><line x1="10" y1="11" x2="10" y2="17"></line><line x1="14" y1="11" x2="14" y2="17"></line></svg>`,
     clipboard: `<svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>`,
     plus: `<svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>`,
-    globe: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`
+    globe: `<svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>`,
+    paperclip: `<svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>`,
+    image: `<svg class="icon" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><circle cx="8.5" cy="8.5" r="1.5"></circle><polyline points="21 15 16 10 5 21"></polyline></svg>`,
+    video: `<svg class="icon" viewBox="0 0 24 24"><polygon points="23 7 16 12 23 17 23 7"></polygon><rect x="1" y="5" width="15" height="14" rx="2" ry="2"></rect></svg>`,
+    audio: `<svg class="icon" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg>`,
+    file: `<svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`,
+    download: `<svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`,
+    eye: `<svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
+    upload: `<svg class="icon" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>`
   };
+
+  // Size limit constants (Optimized for full-resolution modern 48MP iPhone photos & ProRAW)
+  const MAX_FILE_SIZE_BYTES = 75 * 1024 * 1024; // 75 MB limit
+  const MAX_FILE_SIZE_LABEL = '75 MB';
 
   // DOM Elements
   const quickPasteInput = document.getElementById('quick-paste-input');
@@ -30,8 +42,43 @@
   const tabNotepad = document.getElementById('tab-notepad');
   const tabLinks = document.getElementById('tab-links');
   const tabSplit = document.getElementById('tab-split');
+  const tabAttachments = document.getElementById('tab-attachments');
   const linkListView = document.getElementById('link-list-view');
   const rawNotepadView = document.getElementById('raw-notepad-view');
+  const attachmentsView = document.getElementById('attachments-view');
+
+  // Attachment DOM Elements
+  const attachmentCountBadge = document.getElementById('attachment-count-badge');
+  const attachmentsTitleCount = document.getElementById('attachments-title-count');
+  const btnUploadAttachments = document.getElementById('btn-upload-attachments');
+  const btnDownloadAllAttachments = document.getElementById('btn-download-all-attachments');
+  const btnClearAllAttachments = document.getElementById('btn-clear-all-attachments');
+  const attachmentDropzone = document.getElementById('attachment-dropzone');
+  const attachmentFileInput = document.getElementById('attachment-file-input');
+  const dropzoneBrowseBtn = document.getElementById('dropzone-browse-btn');
+  const storageUsageBadge = document.getElementById('storage-usage-badge');
+  const attachmentSearchInput = document.getElementById('attachment-search-input');
+  const attachmentsCardsGrid = document.getElementById('attachments-cards-grid');
+  const emptyAttachmentsPlaceholder = document.getElementById('empty-attachments-placeholder');
+  const btnHeaderAttach = document.getElementById('btn-header-attach');
+
+  // Filter Counters
+  const countAll = document.getElementById('count-all');
+  const countImage = document.getElementById('count-image');
+  const countVideo = document.getElementById('count-video');
+  const countAudio = document.getElementById('count-audio');
+  const countDocument = document.getElementById('count-document');
+
+  // Lightbox Modal Elements
+  const mediaLightboxModal = document.getElementById('media-lightbox-modal');
+  const lightboxFilename = document.getElementById('lightbox-filename');
+  const lightboxFilemeta = document.getElementById('lightbox-filemeta');
+  const lightboxDownloadBtn = document.getElementById('lightbox-download-btn');
+  const lightboxCloseBtn = document.getElementById('lightbox-close-btn');
+  const lightboxContentWrap = document.getElementById('lightbox-content-wrap');
+
+  // Global Drag Overlay
+  const globalDragOverlay = document.getElementById('global-drag-overlay');
 
   // Status & Room Elements
   const syncStatusDot = document.getElementById('sync-status-dot');
@@ -48,6 +95,7 @@
   const statLinkCount = document.getElementById('stat-link-count');
   const statWordCount = document.getElementById('stat-word-count');
   const statCharCount = document.getElementById('stat-char-count');
+  const statAttachmentCount = document.getElementById('stat-attachment-count');
   const statDeviceName = document.getElementById('stat-device-name');
 
   // Customization Selectors
@@ -65,13 +113,130 @@
 
   // State
   let currentLinks = [];
+  let currentAttachments = [];
+  let activeFilter = 'all';
+  let currentSearchQuery = '';
+  let deletedAttachmentHistory = [];
   let isEditingTextarea = false;
+
+  // IndexedDB Storage Manager for Permanent Attachments
+  const AttachmentDB = {
+    dbPromise: null,
+    getDb() {
+      if (!this.dbPromise) {
+        this.dbPromise = new Promise((resolve) => {
+          try {
+            const req = indexedDB.open('ringos_notepad_db', 1);
+            req.onupgradeneeded = (e) => {
+              const db = e.target.result;
+              if (!db.objectStoreNames.contains('attachments')) {
+                db.createObjectStore('attachments', { keyPath: 'id' });
+              }
+            };
+            req.onsuccess = (e) => resolve(e.target.result);
+            req.onerror = (e) => {
+              console.error('[SyncPad] IndexedDB open error:', e);
+              resolve(null);
+            };
+          } catch (e) {
+            console.error('[SyncPad] IndexedDB unavailable:', e);
+            resolve(null);
+          }
+        });
+      }
+      return this.dbPromise;
+    },
+
+    async getAll() {
+      const db = await this.getDb();
+      if (!db) return [];
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction('attachments', 'readonly');
+          const store = tx.objectStore('attachments');
+          const req = store.getAll();
+          req.onsuccess = () => resolve(req.result || []);
+          req.onerror = () => resolve([]);
+        } catch (e) {
+          resolve([]);
+        }
+      });
+    },
+
+    async put(item) {
+      const db = await this.getDb();
+      if (!db) return false;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction('attachments', 'readwrite');
+          const store = tx.objectStore('attachments');
+          const req = store.put(item);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => resolve(false);
+        } catch (e) {
+          resolve(false);
+        }
+      });
+    },
+
+    async delete(id) {
+      const db = await this.getDb();
+      if (!db) return false;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction('attachments', 'readwrite');
+          const store = tx.objectStore('attachments');
+          const req = store.delete(id);
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => resolve(false);
+        } catch (e) {
+          resolve(false);
+        }
+      });
+    },
+
+    async clear() {
+      const db = await this.getDb();
+      if (!db) return false;
+      return new Promise((resolve) => {
+        try {
+          const tx = db.transaction('attachments', 'readwrite');
+          const store = tx.objectStore('attachments');
+          const req = store.clear();
+          req.onsuccess = () => resolve(true);
+          req.onerror = () => resolve(false);
+        } catch (e) {
+          resolve(false);
+        }
+      });
+    }
+  };
+
+  // Cross-Tab Attachment Synchronization
+  let attachmentsChannel = null;
+  try {
+    attachmentsChannel = new BroadcastChannel('syncpad-attachments-bc');
+    attachmentsChannel.onmessage = async (e) => {
+      if (e.data && e.data.type === 'ATTACHMENTS_CHANGED') {
+        await loadAttachments(false);
+      }
+    };
+  } catch (e) {}
+
+  function broadcastAttachmentsChange() {
+    if (attachmentsChannel) {
+      try {
+        attachmentsChannel.postMessage({ type: 'ATTACHMENTS_CHANGED' });
+      } catch (e) {}
+    }
+  }
 
   // Initialize
   function init() {
     loadPreferences();
     setupEventListeners();
     setupSyncEngine();
+    loadAttachments();
     updateShareUrl();
     statDeviceName.textContent = window.syncEngine.deviceInfo.name;
 
@@ -182,8 +347,16 @@
       }
     });
 
-    // 3. Global Paste Listener: paste link from anywhere
+    // 3. Global Paste Listener: paste pictures/files or links from anywhere
     window.addEventListener('paste', (e) => {
+      // Check for pasted files or images in clipboard (e.g. Snipping Tool screenshots)
+      const clipboardFiles = (e.clipboardData && e.clipboardData.files) ? e.clipboardData.files : null;
+      if (clipboardFiles && clipboardFiles.length > 0) {
+        e.preventDefault();
+        handleFiles(clipboardFiles);
+        return;
+      }
+
       const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
       if (activeTag === 'textarea' || (activeTag === 'input' && document.activeElement !== quickPasteInput)) {
         return;
@@ -200,9 +373,15 @@
     if (tabNotepad) tabNotepad.addEventListener('click', () => switchView('notepad'));
     if (tabLinks) tabLinks.addEventListener('click', () => switchView('links'));
     if (tabSplit) tabSplit.addEventListener('click', () => switchView('split'));
+    if (tabAttachments) tabAttachments.addEventListener('click', () => switchView('attachments'));
 
-    // Restore saved view or default to link collector
-    const savedView = localStorage.getItem('ringo_view_mode') || 'links';
+    // Set 'split' (side-by-side) as default when site is opened
+    if (localStorage.getItem('ringo_default_sidebyside_v2') !== 'true') {
+      localStorage.setItem('ringo_default_sidebyside_v2', 'true');
+      localStorage.setItem('ringo_view_mode', 'split');
+    }
+
+    const savedView = localStorage.getItem('ringo_view_mode') || 'split';
     switchView(savedView);
 
     // 5. Raw textarea input listener (collaborative typing)
@@ -222,7 +401,7 @@
       window.syncEngine.flushNotesNow();
     });
 
-    // 6. Batch Actions
+    // 6. Batch Actions for Links
     btnOpenAll.addEventListener('click', () => {
       const unopened = currentLinks.filter(l => !l.opened);
       const toOpen = unopened.length > 0 ? unopened : currentLinks;
@@ -261,7 +440,127 @@
       }
     });
 
-    // 7. Customization Selectors
+    // 7. Attachments Event Listeners
+    if (btnUploadAttachments) {
+      btnUploadAttachments.addEventListener('click', () => {
+        if (attachmentFileInput) attachmentFileInput.click();
+      });
+    }
+
+    if (btnHeaderAttach) {
+      btnHeaderAttach.addEventListener('click', () => {
+        if (attachmentFileInput) attachmentFileInput.click();
+      });
+    }
+
+    if (dropzoneBrowseBtn) {
+      dropzoneBrowseBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (attachmentFileInput) attachmentFileInput.click();
+      });
+    }
+
+    if (attachmentDropzone) {
+      attachmentDropzone.addEventListener('click', () => {
+        if (attachmentFileInput) attachmentFileInput.click();
+      });
+      attachmentDropzone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        attachmentDropzone.classList.add('drag-active');
+      });
+      attachmentDropzone.addEventListener('dragleave', () => {
+        attachmentDropzone.classList.remove('drag-active');
+      });
+      attachmentDropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        attachmentDropzone.classList.remove('drag-active');
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+          handleFiles(e.dataTransfer.files);
+        }
+      });
+    }
+
+    if (attachmentFileInput) {
+      attachmentFileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+          handleFiles(e.target.files);
+          e.target.value = '';
+        }
+      });
+    }
+
+    if (btnDownloadAllAttachments) {
+      btnDownloadAllAttachments.addEventListener('click', handleDownloadAllAttachments);
+    }
+
+    if (btnClearAllAttachments) {
+      btnClearAllAttachments.addEventListener('click', handleClearAllAttachments);
+    }
+
+    if (attachmentSearchInput) {
+      attachmentSearchInput.addEventListener('input', (e) => {
+        currentSearchQuery = e.target.value.toLowerCase().trim();
+        renderAttachments();
+      });
+    }
+
+    // Attachment Category Filter Pills
+    document.querySelectorAll('.filter-pill').forEach(pill => {
+      pill.addEventListener('click', () => {
+        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        pill.classList.add('active');
+        activeFilter = pill.getAttribute('data-filter') || 'all';
+        renderAttachments();
+      });
+    });
+
+    // 8. Global Window Drag and Drop
+    let dragCounter = 0;
+    window.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      dragCounter++;
+      if (e.dataTransfer && Array.from(e.dataTransfer.types || []).includes('Files')) {
+        if (globalDragOverlay) globalDragOverlay.classList.add('active');
+      }
+    });
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        if (globalDragOverlay) globalDragOverlay.classList.remove('active');
+      }
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      if (globalDragOverlay) globalDragOverlay.classList.remove('active');
+      if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+        handleFiles(e.dataTransfer.files);
+      }
+    });
+
+    // 9. Media Lightbox Modal Listeners
+    if (lightboxCloseBtn) {
+      lightboxCloseBtn.addEventListener('click', closeLightbox);
+    }
+    if (mediaLightboxModal) {
+      mediaLightboxModal.addEventListener('click', (e) => {
+        if (e.target === mediaLightboxModal) closeLightbox();
+      });
+    }
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') closeLightbox();
+    });
+
+    // 10. Customization Selectors
     selectTheme.addEventListener('change', (e) => {
       const val = e.target.value;
       document.documentElement.setAttribute('data-theme', val);
@@ -291,7 +590,7 @@
       });
     }
 
-    // 8. Room Sharing & Modals
+    // 11. Room Sharing & Modals
     btnShareRoom.addEventListener('click', openShareModal);
     btnCloseModal.addEventListener('click', closeShareModal);
     shareModal.addEventListener('click', (e) => {
@@ -469,13 +768,13 @@
     return card;
   }
 
-  // Switch between Blank Notepad, Link Collector, and Side-by-Side views
+  // Switch between Blank Notepad, Link Collector, Side-by-Side, and Attachments views
   function switchView(mode) {
-    if (mode !== 'notepad' && mode !== 'links' && mode !== 'split') {
-      mode = 'links';
+    if (mode !== 'notepad' && mode !== 'links' && mode !== 'split' && mode !== 'attachments') {
+      mode = 'split';
     }
 
-    document.body.classList.remove('view-notepad', 'view-links', 'view-split');
+    document.body.classList.remove('view-notepad', 'view-links', 'view-split', 'view-attachments');
     document.body.classList.add(`view-${mode}`);
 
     if (tabNotepad) {
@@ -490,6 +789,10 @@
       tabSplit.classList.toggle('active', mode === 'split');
       tabSplit.setAttribute('aria-selected', mode === 'split');
     }
+    if (tabAttachments) {
+      tabAttachments.classList.toggle('active', mode === 'attachments');
+      tabAttachments.setAttribute('aria-selected', mode === 'attachments');
+    }
 
     try {
       localStorage.setItem('ringo_view_mode', mode);
@@ -501,6 +804,365 @@
     } else if (mode === 'links') {
       if (quickPasteInput) quickPasteInput.focus();
     }
+  }
+
+  // ==========================================
+  // Attachments Engine & UI Logic
+  // ==========================================
+
+  async function loadAttachments(notify = true) {
+    try {
+      const stored = await AttachmentDB.getAll();
+      currentAttachments = Array.isArray(stored) ? stored.sort((a, b) => b.timestamp - a.timestamp) : [];
+      renderAttachments();
+      updateAttachmentStats();
+    } catch (e) {
+      console.warn('[SyncPad] Failed to load attachments from IndexedDB:', e);
+    }
+  }
+
+  function getFileCategory(type, name) {
+    const t = (type || '').toLowerCase();
+    const n = (name || '').toLowerCase();
+
+    if (t.startsWith('image/') || /\.(png|jpe?g|gif|webp|svg|ico|bmp|avif|heic|heif|dng)$/i.test(n)) {
+      return 'image';
+    }
+    if (t.startsWith('video/') || /\.(mp4|webm|mov|mkv|avi|ogv)$/i.test(n)) {
+      return 'video';
+    }
+    if (t.startsWith('audio/') || /\.(mp3|wav|ogg|m4a|aac|flac)$/i.test(n)) {
+      return 'audio';
+    }
+    if (t.includes('pdf') || /\.(pdf)$/i.test(n) || t.includes('text') || /\.(txt|md|json|js|html|css|csv|xml|py)$/i.test(n) || t.includes('document') || /\.(docx?|xlsx?|pptx?)$/i.test(n)) {
+      return 'document';
+    }
+    return 'other';
+  }
+
+  function formatBytes(bytes) {
+    if (!bytes || bytes === 0) return '0 B';
+    const k = 1024;
+    const sizes = ['B', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+  }
+
+  function handleFiles(fileList) {
+    if (!fileList || fileList.length === 0) return;
+    const files = Array.from(fileList);
+
+    files.forEach(file => {
+      // Enforce 15 MB limit
+      if (file.size > MAX_FILE_SIZE_BYTES) {
+        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+        showToast(`File "${file.name}" (${sizeMB} MB) exceeds the ${MAX_FILE_SIZE_LABEL} limit. Attachments must be under ${MAX_FILE_SIZE_LABEL}.`);
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const dataUrl = e.target.result;
+        const category = getFileCategory(file.type, file.name);
+        const item = {
+          id: 'att_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
+          name: file.name,
+          type: file.type || 'application/octet-stream',
+          category: category,
+          size: file.size,
+          sizeFormatted: formatBytes(file.size),
+          dataUrl: dataUrl,
+          timestamp: Date.now(),
+          note: ''
+        };
+
+        await AttachmentDB.put(item);
+        currentAttachments.unshift(item);
+        renderAttachments();
+        updateAttachmentStats();
+        broadcastAttachmentsChange();
+        showToast(`Attached "${file.name}" (${item.sizeFormatted})`);
+      };
+
+      reader.onerror = () => {
+        showToast(`Failed to read "${file.name}"`);
+      };
+
+      reader.readAsDataURL(file);
+    });
+  }
+
+  function renderAttachments() {
+    if (!attachmentsCardsGrid) return;
+    attachmentsCardsGrid.innerHTML = '';
+
+    // Filter and search
+    let filtered = currentAttachments;
+    if (activeFilter !== 'all') {
+      filtered = filtered.filter(item => item.category === activeFilter);
+    }
+    if (currentSearchQuery) {
+      filtered = filtered.filter(item => 
+        item.name.toLowerCase().includes(currentSearchQuery) || 
+        (item.note && item.note.toLowerCase().includes(currentSearchQuery))
+      );
+    }
+
+    if (filtered.length === 0) {
+      if (emptyAttachmentsPlaceholder) emptyAttachmentsPlaceholder.classList.add('active');
+    } else {
+      if (emptyAttachmentsPlaceholder) emptyAttachmentsPlaceholder.classList.remove('active');
+      filtered.forEach(item => {
+        const card = createAttachmentCard(item);
+        attachmentsCardsGrid.appendChild(card);
+      });
+    }
+
+    updateFilterCounts();
+  }
+
+  function createAttachmentCard(item) {
+    const card = document.createElement('div');
+    card.className = 'attachment-card';
+    card.setAttribute('data-id', item.id);
+
+    const formattedTime = formatTimestamp(item.timestamp);
+    const fullDateTitle = item.timestamp ? new Date(item.timestamp).toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'full', timeStyle: 'long' }) : '';
+    const ext = (item.name.split('.').pop() || 'file').substring(0, 4);
+
+    let mediaPreviewHtml = '';
+    if (item.category === 'image') {
+      mediaPreviewHtml = `
+        <div class="attachment-media-preview image-preview" title="Click to view full image">
+          <img src="${item.dataUrl}" alt="${escapeHtml(item.name)}" loading="lazy" />
+          <div class="media-hover-overlay">
+            <button type="button" class="btn-preview-media">
+              ${ICONS.eye}
+              <span>Preview</span>
+            </button>
+          </div>
+        </div>
+      `;
+    } else if (item.category === 'video') {
+      mediaPreviewHtml = `
+        <div class="attachment-media-preview video-preview">
+          <video src="${item.dataUrl}" controls preload="metadata" playsinline></video>
+        </div>
+      `;
+    } else if (item.category === 'audio') {
+      mediaPreviewHtml = `
+        <div class="attachment-media-preview audio-preview">
+          <div class="audio-icon-wrap">${ICONS.audio}</div>
+          <audio src="${item.dataUrl}" controls preload="metadata"></audio>
+        </div>
+      `;
+    } else {
+      mediaPreviewHtml = `
+        <div class="attachment-media-preview doc-preview">
+          <div class="doc-icon-wrap">${ICONS.file}</div>
+          <div class="doc-badge-ext">${escapeHtml(ext.toUpperCase())}</div>
+        </div>
+      `;
+    }
+
+    card.innerHTML = `
+      ${mediaPreviewHtml}
+      <div class="attachment-card-body">
+        <div class="attachment-card-meta-row">
+          <span class="attachment-type-badge">${escapeHtml(item.category)}</span>
+          <span class="attachment-size-badge">${escapeHtml(item.sizeFormatted || '')}</span>
+        </div>
+        <div class="attachment-name-text" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
+        <div class="attachment-time-text" ${fullDateTitle ? `title="${escapeHtml(fullDateTitle)}"` : ''}>${formattedTime}</div>
+        <input 
+          type="text" 
+          class="attachment-note-input" 
+          placeholder="Add note or caption..." 
+          value="${escapeHtml(item.note || '')}" 
+          spellcheck="false"
+        />
+        <div class="attachment-card-actions">
+          <button type="button" class="btn-card-action btn-preview" title="Preview media">
+            ${ICONS.eye}
+            <span>Preview</span>
+          </button>
+          <button type="button" class="btn-card-action btn-download" title="Download file">
+            ${ICONS.download}
+            <span>Download</span>
+          </button>
+          <button type="button" class="btn-card-action btn-delete" title="Delete attachment">
+            ${ICONS.trash}
+            <span>Delete</span>
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Preview click
+    const previewTrigger = card.querySelector('.btn-preview');
+    const imagePreviewArea = card.querySelector('.image-preview');
+    if (previewTrigger) previewTrigger.addEventListener('click', () => openLightbox(item));
+    if (imagePreviewArea) imagePreviewArea.addEventListener('click', () => openLightbox(item));
+
+    // Download click
+    const downloadBtn = card.querySelector('.btn-download');
+    if (downloadBtn) downloadBtn.addEventListener('click', () => downloadAttachment(item));
+
+    // Note change
+    const noteInput = card.querySelector('.attachment-note-input');
+    noteInput.addEventListener('change', async () => {
+      item.note = noteInput.value.trim();
+      await AttachmentDB.put(item);
+      broadcastAttachmentsChange();
+    });
+
+    // Delete click
+    const deleteBtn = card.querySelector('.btn-delete');
+    deleteBtn.addEventListener('click', () => deleteAttachment(item.id));
+
+    return card;
+  }
+
+  function openLightbox(item) {
+    if (!mediaLightboxModal) return;
+    lightboxFilename.textContent = item.name;
+    const formattedTime = formatTimestamp(item.timestamp);
+    lightboxFilemeta.textContent = `${item.category.toUpperCase()} • ${item.sizeFormatted} • ${formattedTime}`;
+    lightboxDownloadBtn.href = item.dataUrl;
+    lightboxDownloadBtn.download = item.name;
+
+    lightboxContentWrap.innerHTML = '';
+    if (item.category === 'image') {
+      const img = document.createElement('img');
+      img.src = item.dataUrl;
+      img.alt = item.name;
+      lightboxContentWrap.appendChild(img);
+    } else if (item.category === 'video') {
+      const video = document.createElement('video');
+      video.src = item.dataUrl;
+      video.controls = true;
+      video.autoplay = true;
+      video.playsInline = true;
+      lightboxContentWrap.appendChild(video);
+    } else if (item.category === 'audio') {
+      const audio = document.createElement('audio');
+      audio.src = item.dataUrl;
+      audio.controls = true;
+      audio.autoplay = true;
+      lightboxContentWrap.appendChild(audio);
+    } else {
+      lightboxContentWrap.innerHTML = `
+        <div style="text-align: center; padding: 40px; color: var(--text-main);">
+          <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">${escapeHtml(item.name)}</div>
+          <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">${escapeHtml(item.sizeFormatted)} • ${escapeHtml(item.type)}</div>
+          <a href="${item.dataUrl}" download="${escapeHtml(item.name)}" class="btn btn-primary" style="display: inline-flex;">Download File</a>
+        </div>
+      `;
+    }
+
+    mediaLightboxModal.classList.add('active');
+  }
+
+  function closeLightbox() {
+    if (!mediaLightboxModal) return;
+    mediaLightboxModal.classList.remove('active');
+    lightboxContentWrap.innerHTML = '';
+  }
+
+  function downloadAttachment(item) {
+    const a = document.createElement('a');
+    a.href = item.dataUrl;
+    a.download = item.name;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+
+  async function deleteAttachment(id) {
+    const idx = currentAttachments.findIndex(a => a.id === id);
+    if (idx !== -1) {
+      const removed = currentAttachments.splice(idx, 1)[0];
+      deletedAttachmentHistory.push({ item: removed, index: idx });
+      await AttachmentDB.delete(id);
+      renderAttachments();
+      updateAttachmentStats();
+      broadcastAttachmentsChange();
+
+      showToastWithUndo(`Deleted "${removed.name}"`, async () => {
+        const last = deletedAttachmentHistory.pop();
+        if (last) {
+          await AttachmentDB.put(last.item);
+          currentAttachments.splice(last.index, 0, last.item);
+          renderAttachments();
+          updateAttachmentStats();
+          broadcastAttachmentsChange();
+        }
+      });
+    }
+  }
+
+  function updateAttachmentStats() {
+    const count = currentAttachments.length;
+    let totalBytes = 0;
+    currentAttachments.forEach(a => totalBytes += (a.size || 0));
+
+    if (attachmentCountBadge) attachmentCountBadge.textContent = count;
+    if (attachmentsTitleCount) attachmentsTitleCount.textContent = `(${count})`;
+    if (statAttachmentCount) statAttachmentCount.textContent = `${count} attachments`;
+    if (storageUsageBadge) storageUsageBadge.textContent = `${formatBytes(totalBytes)} stored`;
+
+    updateFilterCounts();
+  }
+
+  function updateFilterCounts() {
+    const counts = { image: 0, video: 0, audio: 0, document: 0, all: currentAttachments.length };
+    currentAttachments.forEach(item => {
+      if (counts[item.category] !== undefined) {
+        counts[item.category]++;
+      }
+    });
+
+    if (countAll) countAll.textContent = counts.all;
+    if (countImage) countImage.textContent = counts.image;
+    if (countVideo) countVideo.textContent = counts.video;
+    if (countAudio) countAudio.textContent = counts.audio;
+    if (countDocument) countDocument.textContent = counts.document;
+  }
+
+  function handleDownloadAllAttachments() {
+    if (currentAttachments.length === 0) {
+      showToast('No attachments to download');
+      return;
+    }
+    showToast(`Downloading ${currentAttachments.length} attachments...`);
+    currentAttachments.forEach((item, index) => {
+      setTimeout(() => {
+        downloadAttachment(item);
+      }, index * 250);
+    });
+  }
+
+  async function handleClearAllAttachments() {
+    if (currentAttachments.length === 0) {
+      showToast('No attachments to delete');
+      return;
+    }
+    const previous = [...currentAttachments];
+    currentAttachments = [];
+    await AttachmentDB.clear();
+    renderAttachments();
+    updateAttachmentStats();
+    broadcastAttachmentsChange();
+
+    showToastWithUndo(`Deleted ${previous.length} attachments`, async () => {
+      for (const item of previous) {
+        await AttachmentDB.put(item);
+      }
+      currentAttachments = previous;
+      renderAttachments();
+      updateAttachmentStats();
+      broadcastAttachmentsChange();
+    });
   }
 
   function updateStats() {
