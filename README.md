@@ -26,7 +26,7 @@ Ringo's Notepad syncs automatically in real time across any browser and device: 
   - Separate **Attachments** tab at the top (kept distinct from the side-by-side notepad view) for uploading and organizing pictures, videos, audio clips, and documents.
   - **Drag & Drop Anywhere**: Drag files from your computer directly onto the window or dropzone to upload.
   - **Clipboard Paste**: Paste screenshots or copied images (<kbd>Cmd/Ctrl + V</kbd>) directly into attachments.
-  - **Size Limit Protection**: Up to **75 MB** per-file size limit with real-time validation (handles modern 48MP iPhone photos, HEIC, Apple ProRAW, and media).
+  - **Size Limit Protection**: Clearly stated **15 MB** per-file size limit with real-time validation.
   - **Permanent IndexedDB Storage**: Media files are stored securely and permanently in browser IndexedDB with cross-tab sync.
   - **Media Previews & Lightbox**: Fullscreen lightbox player for pictures and videos, audio playback controls, original file download, and customizable captions/notes.
 - **Blank Typable Sheet**:
@@ -38,9 +38,29 @@ Ringo's Notepad syncs automatically in real time across any browser and device: 
 
 ---
 
+## How to Deploy to GitHub Pages
+
+1. Push this repository to your GitHub account:
+   ```bash
+   git init
+   git add .
+   git commit -m "Deploy Ringo's Notepad to GitHub Pages"
+   git branch -M main
+   git remote add origin https://github.com/<YOUR-USERNAME>/<REPO-NAME>.git
+   git push -u origin main
+   ```
+2. On GitHub, go to your repository's **Settings** ➔ **Pages**.
+3. Under **Build and deployment**, select **Deploy from a branch**, set Branch to `main` and folder to `/ (root)`, and click **Save**.
+4. Open the generated GitHub Pages URL on any device or browser:
+   ```
+   https://<YOUR-USERNAME>.github.io/<REPO-NAME>/
+   ```
+
+---
+
 ## Live Universal Workflow
 
 1. Open `https://vsingh2005.github.io/notepad/` on your phone, tablet, Mac, or Windows PC.
-2. Watch the status indicator turn green: `🟢 Online`.
+2. Watch the status indicator turn green: `Online`.
 3. Copy any link or type notes on one device.
 4. Open the site on any other device: your links and notes appear in real time.

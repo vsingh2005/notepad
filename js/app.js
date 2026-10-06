@@ -21,7 +21,8 @@
     file: `<svg class="icon" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>`,
     download: `<svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>`,
     eye: `<svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>`,
-    upload: `<svg class="icon" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>`
+    upload: `<svg class="icon" viewBox="0 0 24 24"><polyline points="16 16 12 12 8 16"></polyline><line x1="12" y1="12" x2="12" y2="21"></line><path d="M20.39 18.39A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.3"></path></svg>`,
+    play: `<svg class="icon" viewBox="0 0 24 24"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>`
   };
 
   // Size limit constants (Optimized for full-resolution modern 48MP iPhone photos & ProRAW)
@@ -506,9 +507,9 @@
     }
 
     // Attachment Category Filter Pills
-    document.querySelectorAll('.filter-pill').forEach(pill => {
+    document.querySelectorAll('.attachment-filter-btn, .filter-pill').forEach(pill => {
       pill.addEventListener('click', () => {
-        document.querySelectorAll('.filter-pill').forEach(p => p.classList.remove('active'));
+        document.querySelectorAll('.attachment-filter-btn, .filter-pill').forEach(p => p.classList.remove('active'));
         pill.classList.add('active');
         activeFilter = pill.getAttribute('data-filter') || 'all';
         renderAttachments();
@@ -777,6 +778,15 @@
     document.body.classList.remove('view-notepad', 'view-links', 'view-split', 'view-attachments');
     document.body.classList.add(`view-${mode}`);
 
+    // Strictly enforce that attachments are hidden in notepad, links, and split views
+    if (attachmentsView) {
+      if (mode === 'attachments') {
+        attachmentsView.style.setProperty('display', 'flex', 'important');
+      } else {
+        attachmentsView.style.setProperty('display', 'none', 'important');
+      }
+    }
+
     if (tabNotepad) {
       tabNotepad.classList.toggle('active', mode === 'notepad');
       tabNotepad.setAttribute('aria-selected', mode === 'notepad');
@@ -923,102 +933,102 @@
 
   function createAttachmentCard(item) {
     const card = document.createElement('div');
-    card.className = 'attachment-card';
+    card.className = 'link-card attachment-item-card';
     card.setAttribute('data-id', item.id);
 
     const formattedTime = formatTimestamp(item.timestamp);
     const fullDateTitle = item.timestamp ? new Date(item.timestamp).toLocaleString('en-US', { timeZone: 'America/Chicago', dateStyle: 'full', timeStyle: 'long' }) : '';
-    const ext = (item.name.split('.').pop() || 'file').substring(0, 4);
 
-    let mediaPreviewHtml = '';
+    let thumbHtml = '';
     if (item.category === 'image') {
-      mediaPreviewHtml = `
-        <div class="attachment-media-preview image-preview" title="Click to view full image">
-          <img src="${item.dataUrl}" alt="${escapeHtml(item.name)}" loading="lazy" />
-          <div class="media-hover-overlay">
-            <button type="button" class="btn-preview-media">
-              ${ICONS.eye}
-              <span>Preview</span>
-            </button>
-          </div>
+      thumbHtml = `
+        <div class="attachment-thumb-wrap" title="Click to preview full image">
+          <img class="attachment-thumb-img" src="${item.dataUrl}" alt="${escapeHtml(item.name)}" loading="lazy" />
         </div>
       `;
     } else if (item.category === 'video') {
-      mediaPreviewHtml = `
-        <div class="attachment-media-preview video-preview">
-          <video src="${item.dataUrl}" controls preload="metadata" playsinline></video>
+      thumbHtml = `
+        <div class="attachment-thumb-wrap" title="Click to play video">
+          <video class="attachment-thumb-video" src="${item.dataUrl}" preload="metadata"></video>
+          <div class="attachment-thumb-play-icon">${ICONS.play}</div>
         </div>
       `;
     } else if (item.category === 'audio') {
-      mediaPreviewHtml = `
-        <div class="attachment-media-preview audio-preview">
-          <div class="audio-icon-wrap">${ICONS.audio}</div>
-          <audio src="${item.dataUrl}" controls preload="metadata"></audio>
+      thumbHtml = `
+        <div class="attachment-thumb-wrap" title="Click to play audio">
+          <div class="attachment-thumb-doc-icon">${ICONS.audio}</div>
         </div>
       `;
     } else {
-      mediaPreviewHtml = `
-        <div class="attachment-media-preview doc-preview">
-          <div class="doc-icon-wrap">${ICONS.file}</div>
-          <div class="doc-badge-ext">${escapeHtml(ext.toUpperCase())}</div>
+      thumbHtml = `
+        <div class="attachment-thumb-wrap" title="Click to preview or download">
+          <div class="attachment-thumb-doc-icon">${ICONS.file}</div>
         </div>
       `;
     }
 
+    const badgeClass = item.category === 'image' ? 'badge-image' :
+                       item.category === 'video' ? 'badge-video' :
+                       item.category === 'audio' ? 'badge-audio' : 'badge-doc';
+
     card.innerHTML = `
-      ${mediaPreviewHtml}
-      <div class="attachment-card-body">
-        <div class="attachment-card-meta-row">
-          <span class="attachment-type-badge">${escapeHtml(item.category)}</span>
-          <span class="attachment-size-badge">${escapeHtml(item.sizeFormatted || '')}</span>
+      <div class="link-card-left">
+        ${thumbHtml}
+        <div class="link-details">
+          <div class="link-badge-row">
+            <span class="domain-badge ${badgeClass}">${escapeHtml(item.category.toUpperCase())}</span>
+            <span class="attachment-size-text">${escapeHtml(item.sizeFormatted || '')}</span>
+            <span class="link-time" ${fullDateTitle ? `title="${escapeHtml(fullDateTitle)}"` : ''}>${formattedTime}</span>
+          </div>
+          <span class="attachment-filename-text" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</span>
+          <input 
+            type="text" 
+            class="link-note-input" 
+            placeholder="+ Add a note or caption..." 
+            value="${escapeHtml(item.note || '')}" 
+            spellcheck="false"
+          />
         </div>
-        <div class="attachment-name-text" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</div>
-        <div class="attachment-time-text" ${fullDateTitle ? `title="${escapeHtml(fullDateTitle)}"` : ''}>${formattedTime}</div>
-        <input 
-          type="text" 
-          class="attachment-note-input" 
-          placeholder="Add note or caption..." 
-          value="${escapeHtml(item.note || '')}" 
-          spellcheck="false"
-        />
-        <div class="attachment-card-actions">
-          <button type="button" class="btn-card-action btn-preview" title="Preview media">
-            ${ICONS.eye}
-            <span>Preview</span>
-          </button>
-          <button type="button" class="btn-card-action btn-download" title="Download file">
-            ${ICONS.download}
-            <span>Download</span>
-          </button>
-          <button type="button" class="btn-card-action btn-delete" title="Delete attachment">
-            ${ICONS.trash}
-            <span>Delete</span>
-          </button>
-        </div>
+      </div>
+      <div class="link-card-actions">
+        <button type="button" class="btn-card-action open-btn btn-preview" title="Preview media">
+          <span>Preview</span>
+          ${ICONS.eye}
+        </button>
+        <button type="button" class="btn-card-action copy-btn btn-download" title="Download file">
+          ${ICONS.download}
+        </button>
+        <button type="button" class="btn-card-action delete-btn btn-delete" title="Delete attachment permanently">
+          ${ICONS.trash}
+        </button>
       </div>
     `;
 
     // Preview click
     const previewTrigger = card.querySelector('.btn-preview');
-    const imagePreviewArea = card.querySelector('.image-preview');
+    const thumbWrap = card.querySelector('.attachment-thumb-wrap');
+    const filenameText = card.querySelector('.attachment-filename-text');
     if (previewTrigger) previewTrigger.addEventListener('click', () => openLightbox(item));
-    if (imagePreviewArea) imagePreviewArea.addEventListener('click', () => openLightbox(item));
+    if (thumbWrap) thumbWrap.addEventListener('click', () => openLightbox(item));
+    if (filenameText) filenameText.addEventListener('click', () => openLightbox(item));
 
     // Download click
     const downloadBtn = card.querySelector('.btn-download');
     if (downloadBtn) downloadBtn.addEventListener('click', () => downloadAttachment(item));
 
     // Note change
-    const noteInput = card.querySelector('.attachment-note-input');
-    noteInput.addEventListener('change', async () => {
-      item.note = noteInput.value.trim();
-      await AttachmentDB.put(item);
-      broadcastAttachmentsChange();
-    });
+    const noteInput = card.querySelector('.link-note-input');
+    if (noteInput) {
+      noteInput.addEventListener('change', async () => {
+        item.note = noteInput.value.trim();
+        await AttachmentDB.put(item);
+        broadcastAttachmentsChange();
+      });
+    }
 
     // Delete click
     const deleteBtn = card.querySelector('.btn-delete');
-    deleteBtn.addEventListener('click', () => deleteAttachment(item.id));
+    if (deleteBtn) deleteBtn.addEventListener('click', () => deleteAttachment(item.id));
 
     return card;
   }
