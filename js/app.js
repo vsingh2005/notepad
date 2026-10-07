@@ -367,6 +367,11 @@
 
     // 3. Pages metadata update from Yjs
     sync.onPagesMetaUpdate = (pagesMeta, activeId) => {
+      if (activeId && pagesMeta.some(p => p.id === activeId)) {
+        activeNotePageId = activeId;
+      } else if (!pagesMeta.some(p => p.id === activeNotePageId)) {
+        activeNotePageId = pagesMeta[0] ? pagesMeta[0].id : 'p_main';
+      }
       renderNotePagesTabs(pagesMeta);
     };
 
@@ -878,6 +883,22 @@
   // ==========================================
   // Note Pages & Collaborative Notepad
   // ==========================================
+  function switchNotePage(pageId) {
+    if (!pageId) return;
+    activeNotePageId = pageId;
+    if (window.syncEngine) {
+      window.syncEngine.setActivePage(pageId);
+    }
+    const currentText = (window.syncEngine ? window.syncEngine.getNoteText(pageId) : '') || '';
+    paperTextarea.value = currentText;
+    updateTextStats(currentText);
+    if (noteEditorMode === 'preview') {
+      renderMarkdownPreview(currentText);
+    }
+    const meta = window.syncEngine ? window.syncEngine.getPagesMeta() : [{ id: pageId, title: 'Main Notes' }];
+    renderNotePagesTabs(meta);
+  }
+
   function renderNotePagesTabs(pagesMeta) {
     if (!notesPagesTabs) return;
     notesPagesTabs.innerHTML = '';
@@ -897,11 +918,16 @@
           e.stopPropagation();
           if (confirm(`Delete page "${page.title}"?`)) {
             window.syncEngine.deletePage(page.id);
+            const remaining = window.syncEngine.getPagesMeta();
+            if (activeNotePageId === page.id && remaining.length > 0) {
+              switchNotePage(remaining[0].id);
+            } else {
+              renderNotePagesTabs(remaining);
+            }
           }
           return;
         }
-        activeNotePageId = page.id;
-        window.syncEngine.setActivePage(page.id);
+        switchNotePage(page.id);
       });
 
       // Double click to rename
@@ -1515,7 +1541,10 @@
       btnAddNotePage.addEventListener('click', () => {
         const title = prompt('Enter page title:', 'New Page');
         if (title && title.trim()) {
-          window.syncEngine.addPage(title.trim());
+          const newId = window.syncEngine.addPage(title.trim());
+          if (newId) {
+            switchNotePage(newId);
+          }
         }
       });
     }

@@ -169,35 +169,22 @@ class SyncEngine {
   // ==========================================
 
   setupYjsObservers() {
-    // 1. Ensure default note page exists
-    if (this.yPagesMeta.length === 0) {
-      this.doc.transact(() => {
-        if (this.yPagesMeta.length === 0) {
-          this.yPagesMeta.push([{
-            id: 'p_main',
-            title: 'Main Notes',
-            createdAt: Date.now()
-          }]);
-        }
-      });
-    }
-
-    // 2. Observe links array changes
+    // 1. Observe links array changes
     this.yLinks.observe(() => {
       this.notifyLinksUpdate();
     });
 
-    // 3. Observe note pages meta changes
+    // 2. Observe note pages meta changes
     this.yPagesMeta.observe(() => {
       this.notifyPagesMetaUpdate();
       // Ensure active page is observed
       this.bindPageTextObserver(this.activePageId);
     });
 
-    // 4. Observe page text changes
+    // 3. Observe page text changes
     this.bindPageTextObserver(this.activePageId);
 
-    // 5. Broadcast Yjs incremental updates to network
+    // 4. Broadcast Yjs incremental updates to network
     this.doc.on('update', (update, origin) => {
       if (origin !== 'remote' && origin !== 'indexeddb') {
         this.publishYjsUpdate(update);
@@ -205,13 +192,40 @@ class SyncEngine {
       }
     });
 
-    // When IndexedDB finishes loading local state, notify UI
+    // When IndexedDB finishes loading local state, ensure default page and notify UI
     if (this.indexeddbProvider) {
       this.indexeddbProvider.on('synced', () => {
+        this.ensureDefaultPage();
         this.notifyLinksUpdate();
         this.notifyPagesMetaUpdate();
         this.notifyNotesUpdate(this.activePageId);
       });
+    } else {
+      this.ensureDefaultPage();
+    }
+
+    // Safety fallback: if IndexedDB doesn't exist or is empty after brief timeout
+    setTimeout(() => {
+      this.ensureDefaultPage();
+    }, 350);
+  }
+
+  ensureDefaultPage() {
+    const pages = this.getPagesMeta();
+    if (!pages || pages.length === 0) {
+      if (!this.isReadOnly) {
+        this.doc.transact(() => {
+          if (this.yPagesMeta.length === 0) {
+            this.yPagesMeta.push([{
+              id: 'p_main',
+              title: 'Main Notes',
+              createdAt: Date.now()
+            }]);
+            const yText = new window.Y.Text();
+            this.yNotesPages.set('p_main', yText);
+          }
+        });
+      }
     }
   }
 
@@ -236,10 +250,12 @@ class SyncEngine {
   }
 
   setActivePage(pageId) {
+    if (!pageId) return;
     this.activePageId = pageId;
     this.bindPageTextObserver(pageId);
     this.awareness.setLocalStateField('activePageId', pageId);
     this.broadcastAwareness();
+    this.notifyPagesMetaUpdate();
     this.notifyNotesUpdate(pageId);
   }
 
@@ -517,7 +533,42 @@ class SyncEngine {
   // ==========================================
 
   getPagesMeta() {
-    return this.yPagesMeta.toArray();
+    const raw = this.yPagesMeta.toArray();
+    const seenIds = new Set();
+    const unique = [];
+    const duplicateIndices = [];
+
+    raw.forEach((p, index) => {
+      if (!p || !p.id) {
+        duplicateIndices.push(index);
+        return;
+      }
+      if (seenIds.has(p.id)) {
+        duplicateIndices.push(index);
+        return;
+      }
+      seenIds.add(p.id);
+      unique.push(p);
+    });
+
+    // If duplicate pages exist in the CRDT array, clean them up permanently in a single transaction
+    if (duplicateIndices.length > 0 && !this.isReadOnly) {
+      this.doc.transact(() => {
+        // Delete in reverse order to preserve indices
+        for (let i = duplicateIndices.length - 1; i >= 0; i--) {
+          const idx = duplicateIndices[i];
+          if (idx < this.yPagesMeta.length) {
+            this.yPagesMeta.delete(idx, 1);
+          }
+        }
+      });
+    }
+
+    if (unique.length === 0) {
+      return [{ id: 'p_main', title: 'Main Notes', createdAt: Date.now() }];
+    }
+
+    return unique;
   }
 
   addPage(title) {
@@ -544,21 +595,23 @@ class SyncEngine {
 
     this.doc.transact(() => {
       const meta = this.yPagesMeta.toArray();
-      const idx = meta.findIndex(p => p.id === pageId);
+      const idx = meta.findIndex(p => p && p.id === pageId);
       if (idx !== -1) {
         const item = { ...meta[idx], title: cleanTitle };
         this.yPagesMeta.delete(idx, 1);
         this.yPagesMeta.insert(idx, [item]);
       }
     });
+    this.notifyPagesMetaUpdate();
   }
 
   deletePage(pageId) {
-    if (this.yPagesMeta.length <= 1) return false; // Keep at least one page
+    const meta = this.getPagesMeta();
+    if (meta.length <= 1) return false; // Keep at least one page
 
     this.doc.transact(() => {
-      const meta = this.yPagesMeta.toArray();
-      const idx = meta.findIndex(p => p.id === pageId);
+      const currentMeta = this.yPagesMeta.toArray();
+      const idx = currentMeta.findIndex(p => p && p.id === pageId);
       if (idx !== -1) {
         this.yPagesMeta.delete(idx, 1);
         this.yNotesPages.delete(pageId);
@@ -566,10 +619,12 @@ class SyncEngine {
     });
 
     if (this.activePageId === pageId) {
-      const remaining = this.yPagesMeta.toArray();
+      const remaining = this.getPagesMeta();
       if (remaining.length > 0) {
         this.setActivePage(remaining[0].id);
       }
+    } else {
+      this.notifyPagesMetaUpdate();
     }
     return true;
   }
@@ -932,7 +987,7 @@ class SyncEngine {
 
   notifyPagesMetaUpdate() {
     if (this.onPagesMetaUpdate) {
-      this.onPagesMetaUpdate(this.yPagesMeta.toArray(), this.activePageId);
+      this.onPagesMetaUpdate(this.getPagesMeta(), this.activePageId);
     }
   }
 
