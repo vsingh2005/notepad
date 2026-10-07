@@ -220,6 +220,8 @@ input,
 textarea,
 select,
 button {
+  font-family: inherit;
+  color: inherit;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
@@ -344,7 +346,28 @@ button {
   border-radius: var(--radius-full);
   font-size: 12px;
   font-weight: 500;
+  color: var(--text-main);
   box-shadow: var(--shadow-sm);
+}
+
+#sync-status-text {
+  color: inherit;
+}
+
+[data-theme="ares"] .sync-status-bar {
+  color: #fde8e3;
+  background: rgba(28, 11, 8, 0.95);
+  border-color: rgba(255, 71, 26, 0.3);
+}
+
+[data-theme="ares"] .sync-status-bar:hover {
+  background: rgba(38, 15, 11, 0.98);
+  border-color: rgba(255, 71, 26, 0.5);
+  color: #ffffff;
+}
+
+[data-theme="ares"] #sync-status-text {
+  color: #fde8e3;
 }
 
 .status-dot {
