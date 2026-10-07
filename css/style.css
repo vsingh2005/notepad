@@ -288,7 +288,8 @@ button {
 
   .app-layout {
     flex-direction: row;
-    max-width: 1400px;
+    max-width: 1800px;
+    width: 100%;
     height: 100dvh;
     height: calc(100dvh - env(safe-area-inset-top) - env(safe-area-inset-bottom));
     padding: 24px;
@@ -882,7 +883,7 @@ body.view-split .main-tabs-container,
 body.view-split .quick-paste-container,
 body.view-attachments .sheet-wrapper,
 body.view-attachments .main-tabs-container {
-  max-width: 1200px;
+  max-width: 1600px;
 }
 
 body.view-split .paper-sheet {
@@ -947,6 +948,24 @@ body.view-split .paper-footer-bar {
 .custom-select:hover {
   border-color: var(--primary);
   color: var(--text-main);
+}
+
+.settings-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-top: 20px;
+  margin-top: 10px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+.settings-header {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 /* ==========================================================================
