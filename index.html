@@ -7,6 +7,9 @@
   <meta name="description" content="A leafy pastel green typable notepad and link hub hosted on GitHub Pages that syncs automatically in real time across any browser and device: phones, tablets, laptops, and desktops.">
   <link rel="icon" type="image/png" href="ARES.png">
   <link rel="apple-touch-icon" href="ARES.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Isometra:wght@400;600;700;800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="css/style.css?v=2.4.0">
 </head>
 <body class="view-split" data-ruling="dots">
@@ -99,6 +102,10 @@
           </div>
           <div class="popover-body">
             <div class="theme-swatches-grid">
+              <button type="button" class="theme-swatch-card" data-theme-val="ares">
+                <span class="theme-dot swatch-ares"></span>
+                <span class="theme-name">Ares Ember</span>
+              </button>
               <button type="button" class="theme-swatch-card" data-theme-val="sepia">
                 <span class="theme-dot swatch-sepia"></span>
                 <span class="theme-name">Warm Sepia</span>
@@ -177,9 +184,10 @@
     <div class="canvas-customizers" id="canvas-customizers">
       <!-- Theme Switcher -->
       <select id="select-theme" class="custom-select" title="Color Theme">
+        <option value="ares">Ares Ember</option>
+        <option value="sepia" selected>Warm Sepia</option>
         <option value="light">Paper Light</option>
         <option value="dark">Dark Slate</option>
-        <option value="sepia" selected>Warm Sepia</option>
         <option value="terminal">Cyber Neon</option>
       </select>
 

@@ -306,6 +306,7 @@
   }
 
   const THEME_NAMES = {
+    ares: 'Ares Ember',
     sepia: 'Warm Sepia',
     light: 'Paper Light',
     dark: 'Dark Slate',

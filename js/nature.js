@@ -69,6 +69,14 @@ class NatureAmbience {
 
   getThemeConfig() {
     switch (this.theme) {
+      case 'ares':
+        return {
+          bgGradient: ['#0a0705', '#170c07', '#0f0805'],
+          leafColors: ['rgba(255, 71, 26, 0.65)', 'rgba(249, 115, 22, 0.55)', 'rgba(239, 68, 68, 0.45)'],
+          fireflyColor: 'rgba(255, 140, 50, 0.95)',
+          glowColor: 'rgba(255, 71, 26, 0.28)',
+          sunbeam: 'rgba(255, 90, 30, 0.08)'
+        };
       case 'dark':
         return {
           bgGradient: ['#060a12', '#0b1424', '#0d1f18'],
