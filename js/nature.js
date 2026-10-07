@@ -3,6 +3,7 @@
  * High-performance, calming animated nature visual with drifting botanical leaves,
  * organic pollen/fireflies, and atmospheric ambient lighting.
  * Adapts organically to Light, Dark, Sepia, and Cyber themes.
+ * Supports reduced-motion preferences and state persistence.
  */
 
 class NatureAmbience {
@@ -11,7 +12,15 @@ class NatureAmbience {
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
     this.animationFrameId = null;
-    this.isActive = true;
+
+    // Check saved preference or system reduced motion
+    const saved = localStorage.getItem('ringo_ambience_active');
+    const prefersReducedMotion = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (saved !== null) {
+      this.isActive = saved === 'true';
+    } else {
+      this.isActive = !prefersReducedMotion;
+    }
 
     this.particles = [];
     this.leaves = [];
@@ -29,22 +38,33 @@ class NatureAmbience {
 
     // Observe theme changes to adapt leaf & particle colors
     const observer = new MutationObserver(() => {
-      this.theme = document.documentElement.getAttribute('data-theme') || 'light';
+      this.theme = document.documentElement.getAttribute('data-theme') || 'sepia';
       this.resetPalette();
+      if (!this.isActive) {
+        this.drawStaticBackground();
+      }
     });
     observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
     // Populate natural elements
     this.populateElements();
-    this.animate();
+
+    if (this.isActive) {
+      this.animate();
+    } else {
+      this.drawStaticBackground();
+    }
   }
 
   resize() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    this.canvas.width = this.width * window.devicePixelRatio;
-    this.canvas.height = this.height * window.devicePixelRatio;
-    this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    this.canvas.width = this.width * (window.devicePixelRatio || 1);
+    this.canvas.height = this.height * (window.devicePixelRatio || 1);
+    this.ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    if (!this.isActive) {
+      this.drawStaticBackground();
+    }
   }
 
   getThemeConfig() {
@@ -89,23 +109,22 @@ class NatureAmbience {
     this.leaves = [];
     this.particles = [];
 
-    // Ambient floating leaves (28 leaves for lush organic motion)
-    const leafCount = Math.min(28, Math.floor(this.width / 45));
+    // Ambient floating leaves (20 leaves for smooth frame rates on mobile & desktop)
+    const leafCount = Math.min(22, Math.floor(this.width / 55));
     for (let i = 0; i < leafCount; i++) {
       this.leaves.push(this.createLeaf(true));
     }
 
-    // Glowing organic pollen / fireflies (35 particles)
-    const particleCount = 35;
+    // Glowing organic pollen / fireflies (28 particles)
+    const particleCount = Math.min(28, Math.floor(this.width / 45));
     for (let i = 0; i < particleCount; i++) {
       this.particles.push(this.createParticle(true));
     }
   }
 
   resetPalette() {
-    // Refresh colors when theme changes
+    const config = this.getThemeConfig();
     this.leaves.forEach(leaf => {
-      const config = this.getThemeConfig();
       leaf.color = config.leafColors[Math.floor(Math.random() * config.leafColors.length)];
     });
   }
@@ -115,13 +134,13 @@ class NatureAmbience {
     return {
       x: Math.random() * this.width,
       y: randomY ? Math.random() * this.height : -30,
-      size: 14 + Math.random() * 18,
-      speedY: 0.6 + Math.random() * 1.1,
-      speedX: -0.4 + Math.random() * 0.8,
+      size: 13 + Math.random() * 16,
+      speedY: 0.5 + Math.random() * 0.9,
+      speedX: -0.3 + Math.random() * 0.7,
       rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.02,
+      rotationSpeed: (Math.random() - 0.5) * 0.018,
       swayOffset: Math.random() * Math.PI * 2,
-      swaySpeed: 0.015 + Math.random() * 0.02,
+      swaySpeed: 0.012 + Math.random() * 0.018,
       color: config.leafColors[Math.floor(Math.random() * config.leafColors.length)]
     };
   }
@@ -130,17 +149,16 @@ class NatureAmbience {
     return {
       x: Math.random() * this.width,
       y: randomY ? Math.random() * this.height : this.height + 20,
-      radius: 1.5 + Math.random() * 2.5,
-      speedY: -(0.3 + Math.random() * 0.6),
-      speedX: (Math.random() - 0.5) * 0.5,
+      radius: 1.2 + Math.random() * 2,
+      speedY: -(0.25 + Math.random() * 0.5),
+      speedX: (Math.random() - 0.5) * 0.4,
       pulse: Math.random() * Math.PI,
-      pulseSpeed: 0.03 + Math.random() * 0.03,
-      alpha: 0.2 + Math.random() * 0.6
+      pulseSpeed: 0.025 + Math.random() * 0.025,
+      alpha: 0.2 + Math.random() * 0.5
     };
   }
 
   drawSunbeams(config) {
-    // Subtle ethereal sun ray / ambient atmosphere in upper corner
     const gradient = this.ctx.createRadialGradient(
       this.width * 0.15, 0, 10,
       this.width * 0.2, this.height * 0.4, this.width * 0.7
@@ -149,6 +167,18 @@ class NatureAmbience {
     gradient.addColorStop(1, 'transparent');
     this.ctx.fillStyle = gradient;
     this.ctx.fillRect(0, 0, this.width, this.height);
+  }
+
+  drawStaticBackground() {
+    const config = this.getThemeConfig();
+    this.ctx.clearRect(0, 0, this.width, this.height);
+    const bgGrad = this.ctx.createLinearGradient(0, 0, this.width, this.height);
+    bgGrad.addColorStop(0, config.bgGradient[0]);
+    bgGrad.addColorStop(0.5, config.bgGradient[1]);
+    bgGrad.addColorStop(1, config.bgGradient[2]);
+    this.ctx.fillStyle = bgGrad;
+    this.ctx.fillRect(0, 0, this.width, this.height);
+    this.drawSunbeams(config);
   }
 
   animate() {
@@ -171,23 +201,20 @@ class NatureAmbience {
     // 3. Render and update glowing pollen / fireflies
     this.particles.forEach(p => {
       p.y += p.speedY;
-      p.x += p.speedX + Math.sin(p.pulse) * 0.4;
+      p.x += p.speedX + Math.sin(p.pulse) * 0.35;
       p.pulse += p.pulseSpeed;
 
-      // Glow effect
       const currentAlpha = Math.max(0.1, Math.min(1, Math.sin(p.pulse) * p.alpha + 0.2));
       
       this.ctx.save();
       this.ctx.beginPath();
-      this.ctx.arc(p.x, p.y, p.radius * 2.5, 0, Math.PI * 2);
+      this.ctx.arc(p.x, p.y, p.radius * 2.2, 0, Math.PI * 2);
       this.ctx.fillStyle = config.glowColor;
       this.ctx.fill();
 
       this.ctx.beginPath();
       this.ctx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
       this.ctx.fillStyle = config.fireflyColor.replace(/[\d\.]+\)$/, `${currentAlpha})`);
-      this.ctx.shadowBlur = 10;
-      this.ctx.shadowColor = config.fireflyColor;
       this.ctx.fill();
       this.ctx.restore();
 
@@ -203,34 +230,31 @@ class NatureAmbience {
     // 4. Render and update drifting organic leaves
     this.leaves.forEach(leaf => {
       leaf.y += leaf.speedY;
-      leaf.x += leaf.speedX + Math.sin(leaf.swayOffset) * 0.8;
+      leaf.x += leaf.speedX + Math.sin(leaf.swayOffset) * 0.7;
       leaf.swayOffset += leaf.swaySpeed;
       leaf.rotation += leaf.rotationSpeed;
 
-      // Draw stylized organic leaf
       this.ctx.save();
       this.ctx.translate(leaf.x, leaf.y);
       this.ctx.rotate(leaf.rotation);
 
       this.ctx.beginPath();
-      // Organic teardrop leaf curvature
       this.ctx.moveTo(0, -leaf.size);
       this.ctx.bezierCurveTo(leaf.size * 0.7, -leaf.size * 0.4, leaf.size * 0.7, leaf.size * 0.4, 0, leaf.size);
       this.ctx.bezierCurveTo(-leaf.size * 0.7, leaf.size * 0.4, -leaf.size * 0.7, -leaf.size * 0.4, 0, -leaf.size);
       this.ctx.fillStyle = leaf.color;
       this.ctx.fill();
 
-      // Central delicate leaf stem
+      // Stem
       this.ctx.beginPath();
       this.ctx.moveTo(0, -leaf.size * 0.85);
       this.ctx.lineTo(0, leaf.size * 0.85);
-      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.25)';
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
       this.ctx.lineWidth = 1;
       this.ctx.stroke();
 
       this.ctx.restore();
 
-      // Recycle leaf when it exits screen bottom
       if (leaf.y > this.height + 40) {
         Object.assign(leaf, this.createLeaf(false));
       }
@@ -243,11 +267,15 @@ class NatureAmbience {
 
   toggle() {
     this.isActive = !this.isActive;
+    try {
+      localStorage.setItem('ringo_ambience_active', String(this.isActive));
+    } catch (e) {}
+
     if (this.isActive) {
       this.animate();
     } else {
       cancelAnimationFrame(this.animationFrameId);
-      this.ctx.clearRect(0, 0, this.width, this.height);
+      this.drawStaticBackground();
     }
     return this.isActive;
   }

@@ -2,16 +2,22 @@
 <html lang="en" data-theme="sepia">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
   <title>Ringo's Notepad: Real-Time Universal Notepad & Link Hub</title>
   <meta name="description" content="A leafy pastel green typable notepad and link hub hosted on GitHub Pages that syncs automatically in real time across any browser and device: phones, tablets, laptops, and desktops.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%232d8a5e%22 stroke-width=%222%22><path d=%22M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z%22/><polyline points=%2214 2 14 8 20 8%22/><line x1=%2216%22 y1=%2213%22 x2=%228%22 y2=%2213%22/><line x1=%2216%22 y1=%2217%22 x2=%228%22 y2=%2217%22/><polyline points=%2210 9 9 9 8 9%22/></svg>">
-  <link rel="stylesheet" href="css/style.css?v=2.3.0">
+  <link rel="stylesheet" href="css/style.css?v=2.4.0">
 </head>
 <body class="view-split" data-ruling="dots">
 
   <!-- Animated Living Nature Background Canvas -->
   <canvas id="nature-canvas" class="nature-canvas"></canvas>
+
+  <!-- Read-Only Mode Banner -->
+  <div class="readonly-banner" id="readonly-banner" style="display: none;">
+    <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+    <span>Viewing in Read-Only Mode (Edits and deletions are disabled)</span>
+  </div>
 
   <!-- Main Top Header -->
   <header class="app-header">
@@ -30,10 +36,47 @@
       </div>
     </div>
 
-    <!-- Live Multi-Device Sync Indicator -->
-    <div class="sync-status-bar" id="sync-status-container">
-      <span class="status-dot connected" id="sync-status-dot"></span>
-      <span id="sync-status-text">1 device online</span>
+    <!-- Live Multi-Device Sync Indicator with Popover Trigger -->
+    <div class="sync-status-wrapper">
+      <button class="sync-status-bar" id="sync-status-container" type="button" title="Click to view connection & online peers">
+        <span class="status-dot connected" id="sync-status-dot"></span>
+        <span id="sync-status-text">1 device online</span>
+      </button>
+
+      <!-- Connection & Peers Popover Card -->
+      <div class="connection-popover" id="connection-popover">
+        <div class="popover-header">
+          <span class="popover-title">Sync & Devices</span>
+          <button class="popover-close-btn" id="btn-close-popover" aria-label="Close popover">×</button>
+        </div>
+        <div class="popover-body">
+          <div class="popover-row">
+            <span class="popover-label">Broker:</span>
+            <span class="popover-value" id="popover-broker-val">broker.emqx.io</span>
+          </div>
+          <div class="popover-row">
+            <span class="popover-label">Sync Health:</span>
+            <span class="popover-value status-online-text" id="popover-health-val">CRDT Active</span>
+          </div>
+          <div class="popover-row">
+            <span class="popover-label">Last Synced:</span>
+            <span class="popover-value" id="popover-time-val">Just now</span>
+          </div>
+          <div class="popover-divider"></div>
+          <div class="popover-device-rename">
+            <label for="input-my-device-name" class="popover-label">Your Device Name:</label>
+            <div class="rename-input-row">
+              <input type="text" id="input-my-device-name" class="rename-input" placeholder="Device name..." />
+              <button class="btn btn-sm btn-primary" id="btn-save-device-name">Save</button>
+            </div>
+          </div>
+          <div class="popover-divider"></div>
+          <div class="popover-label" style="margin-bottom: 6px;">Online Devices (<span id="popover-device-count">1</span>):</div>
+          <div class="popover-peers-list" id="popover-peers-list">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+      </div>
     </div>
 
     <!-- Action Buttons -->
@@ -53,6 +96,9 @@
       <button class="btn btn-primary" id="btn-share-room" title="Share link to view & edit on another device">
         <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
         <span>Share / QR</span>
+      </button>
+      <button class="btn btn-icon-only" id="btn-open-shortcuts" title="Keyboard Shortcuts (?)">
+        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
       </button>
     </div>
   </header>
@@ -127,7 +173,7 @@
       <div class="paste-box-actions">
         <button class="btn" id="btn-paste-clipboard" title="Paste directly from your clipboard">
           <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-          <span>Paste Clipboard</span>
+          <span class="btn-text-full">Paste Clipboard</span>
         </button>
         <button class="btn btn-primary" id="btn-add-link">
           <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
@@ -136,8 +182,8 @@
       </div>
     </div>
     <div class="quick-paste-hint">
-      <span>Auto-syncs across all browsers & devices in real time • Links persist permanently until deleted</span>
-      <span>Shortcut: <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd></span>
+      <span>Auto-syncs across all browsers & devices in real time with Yjs CRDT • Clean links without tracking parameters</span>
+      <span>Shortcut: <kbd class="kbd-shortcut">/</kbd> focus &bull; <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd> paste</span>
     </div>
   </section>
 
@@ -145,27 +191,57 @@
   <main class="sheet-wrapper">
     <div class="paper-sheet paper-content">
 
-      <!-- View 1: Interactive Link Cards (Optimized for 1-by-1 pasting, 1-click open, manual delete) -->
+      <!-- View 1: Interactive Link Cards View -->
       <div class="link-list-view" id="link-list-view">
         <div class="link-list-header">
-          <div class="link-list-title">
-            <span>Pasted Links</span>
-            <span id="link-list-title-count"></span>
+          <div class="link-header-top-row">
+            <div class="link-list-title">
+              <span>Pasted Links</span>
+              <span id="link-list-title-count"></span>
+            </div>
+            
+            <div class="link-filter-chips" id="link-filter-chips">
+              <button class="filter-chip active" data-filter="all">All</button>
+              <button class="filter-chip" data-filter="unread">Unread</button>
+              <button class="filter-chip" data-filter="visited">Visited</button>
+              <button class="filter-chip" data-filter="pinned">Pinned</button>
+              <button class="filter-chip" id="btn-toggle-grouping" title="Group links by day">Group: Off</button>
+            </div>
           </div>
-          <div class="link-list-actions">
-            <button class="btn" id="btn-open-all" title="Open all unread links in separate tabs">
-              <svg class="icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
-              <span>Open All</span>
-            </button>
-            <button class="btn" id="btn-copy-all" title="Copy all links as a list">
-              <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
-              <span>Copy All</span>
-            </button>
-            <button class="btn" id="btn-clear-all" title="Delete all links permanently">
-              <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              <span>Delete All</span>
-            </button>
+
+          <!-- Search Bar for Links -->
+          <div class="link-search-row">
+            <div class="search-input-wrap">
+              <svg class="icon search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="link-search-input" class="link-search-input" placeholder="Search links by URL, domain, note, or #tag..." autocomplete="off" />
+              <button class="clear-search-btn" id="btn-clear-link-search" style="display: none;" title="Clear search">×</button>
+            </div>
+
+            <!-- Batch Actions for Links -->
+            <div class="link-list-actions">
+              <button class="btn btn-sm" id="btn-open-unread" title="Open unread links in new tabs">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                <span>Open Unread</span>
+              </button>
+              <button class="btn btn-sm" id="btn-open-all" title="Open all links in separate tabs">
+                <span>Open All</span>
+              </button>
+              <button class="btn btn-sm" id="btn-copy-all" title="Copy links as list">
+                <svg class="icon" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                <span>Copy All</span>
+              </button>
+              <button class="btn btn-sm" id="btn-clear-completed" title="Clear visited links">
+                <span>Clear Visited</span>
+              </button>
+              <button class="btn btn-sm" id="btn-clear-all" title="Delete all links permanently">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                <span>Delete All</span>
+              </button>
+            </div>
           </div>
+
+          <!-- Dynamic Active Tags Bar -->
+          <div class="active-tags-bar" id="active-tags-bar" style="display: none;"></div>
         </div>
 
         <!-- Dynamic Link Cards Container -->
@@ -188,28 +264,67 @@
         </div>
       </div>
 
-      <!-- View 2: Raw Typable Blank Sheet (Collaborative Keystroke CRDT) -->
+      <!-- View 2: Raw Typable Blank Sheet (Collaborative Keystroke CRDT with Multiple Pages & Markdown) -->
       <div class="raw-notepad-view" id="raw-notepad-view">
-        <textarea 
-          id="paper-textarea" 
-          class="paper-textarea" 
-          placeholder="Start typing your notes freely here... Keystrokes sync automatically across any browser and device in real time."
-          spellcheck="false"
-        ></textarea>
-      </div>
+        <!-- Multiple Note Pages Tab Bar -->
+        <div class="notes-pages-bar" id="notes-pages-bar">
+          <div class="notes-pages-tabs" id="notes-pages-tabs">
+            <!-- Populated dynamically -->
+          </div>
+          <button class="btn btn-sm btn-add-page" id="btn-add-note-page" title="Add a new notebook page">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>+ Page</span>
+          </button>
+        </div>
 
-      <!-- View 3: Dedicated Attachments & Media Page (Hidden in all other tabs, active ONLY on Attachments tab) -->
-      <div class="link-list-view attachments-view" id="attachments-view" style="display: none !important;">
-        <div class="link-list-header">
-          <div class="link-list-title">
-            <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-            <span>Attached Media</span>
-            <span id="attachments-title-count"></span>
-            <span class="domain-badge badge-image" title="File size limit">Max 75 MB • iPhone 48MP</span>
+        <!-- Note Toolbar: Markdown Mode, Live Typing Indicator & Active Peers -->
+        <div class="notepad-toolbar">
+          <div class="notes-mode-toggle" id="notes-mode-toggle">
+            <button type="button" class="notes-mode-btn active" data-mode="edit" id="btn-mode-edit">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path></svg>
+              <span>Edit</span>
+            </button>
+            <button type="button" class="notes-mode-btn" data-mode="preview" id="btn-mode-preview">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+              <span>Markdown</span>
+            </button>
           </div>
 
-          <div class="link-list-actions">
-            <!-- Filter Pills matching notebook theme -->
+          <div class="typing-indicator" id="typing-indicator" style="display: none;">
+            <span class="typing-dot"></span>
+            <span class="typing-text" id="typing-text">Someone is typing...</span>
+          </div>
+
+          <div class="active-peers-avatars" id="active-peers-avatars" title="Active collaborators">
+            <!-- Populated dynamically -->
+          </div>
+        </div>
+
+        <div class="notepad-editor-container">
+          <textarea 
+            id="paper-textarea" 
+            class="paper-textarea" 
+            placeholder="Start typing your notes freely here... Keystrokes sync automatically across any browser and device in real time with Yjs CRDT."
+            spellcheck="false"
+          ></textarea>
+          <div id="paper-markdown-preview" class="paper-markdown-preview" style="display: none;"></div>
+          <!-- Remote Cursors Overlay Container -->
+          <div id="remote-cursors-layer" class="remote-cursors-layer"></div>
+        </div>
+      </div>
+
+      <!-- View 3: Dedicated Attachments & Media Page -->
+      <div class="link-list-view attachments-view" id="attachments-view" style="display: none !important;">
+        <div class="link-list-header">
+          <div class="link-header-top-row">
+            <div class="link-list-title">
+              <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+              <span>Attached Media</span>
+              <span id="attachments-title-count"></span>
+              <span class="domain-badge badge-image" title="Pristine full resolution">Full Quality &bull; Up to 75 MB</span>
+            </div>
+
+            <!-- Filter Pills -->
             <div class="attachment-filter-pills" role="tablist">
               <button type="button" class="attachment-filter-btn active" data-filter="all">All</button>
               <button type="button" class="attachment-filter-btn" data-filter="image">Photos</button>
@@ -217,20 +332,37 @@
               <button type="button" class="attachment-filter-btn" data-filter="audio">Audio</button>
               <button type="button" class="attachment-filter-btn" data-filter="document">Docs</button>
             </div>
-
-            <button class="btn btn-primary" id="btn-upload-attachments" title="Upload files (Max 75 MB)">
-              <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
-              <span>Add Media</span>
-            </button>
-            <button class="btn" id="btn-download-all-attachments" title="Download all attachments">
-              <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-              <span>Download All</span>
-            </button>
-            <button class="btn" id="btn-clear-all-attachments" title="Delete all attachments">
-              <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-              <span>Delete All</span>
-            </button>
           </div>
+
+          <div class="link-search-row">
+            <div class="search-input-wrap">
+              <svg class="icon search-icon" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="attachment-search-input" class="link-search-input" placeholder="Search media by filename or caption..." autocomplete="off" />
+            </div>
+
+            <div class="link-list-actions">
+              <button class="btn btn-sm btn-primary" id="btn-upload-attachments" title="Upload files (Max 75 MB)">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
+                <span>Add Media</span>
+              </button>
+              <button class="btn btn-sm" id="btn-download-all-attachments" title="Download all attachments as a single ZIP archive">
+                <svg class="icon" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                <span>Download ZIP</span>
+              </button>
+              <button class="btn btn-sm" id="btn-clear-all-attachments" title="Delete all attachments">
+                <svg class="icon" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+                <span>Delete All</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Transfer Progress Bar -->
+        <div class="transfer-progress-bar-container" id="transfer-progress-container" style="display: none;">
+          <div class="transfer-progress-track">
+            <div class="transfer-progress-fill" id="transfer-progress-fill" style="width: 0%;"></div>
+          </div>
+          <span class="transfer-progress-text" id="transfer-progress-text">Streaming: 0%</span>
         </div>
 
         <input type="file" id="attachment-file-input" multiple accept="image/*,video/*,audio/*,.heic,.heif,.dng,.pdf,.txt,.md,.doc,.docx" style="display: none;" />
@@ -240,7 +372,7 @@
           <!-- Populated dynamically by app.js -->
         </div>
 
-        <!-- Empty state matching the exact empty-links-placeholder aesthetic -->
+        <!-- Empty state -->
         <div class="empty-links-placeholder" id="empty-attachments-placeholder">
           <div class="empty-icon-wrap">
             <svg class="icon icon-lg" viewBox="0 0 24 24" style="width: 28px; height: 28px;">
@@ -250,7 +382,7 @@
           <div class="empty-title">Your attachments sheet is empty</div>
           <div class="empty-subtitle">
             Drag & drop pictures, videos, or files anywhere on this sheet, paste screenshots (<kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd>), or click <strong>Add Media</strong> above.<br>
-            Supports full-resolution 48MP iPhone photos, HEIC, ProRAW, and media up to 75 MB.
+            Preserves 100% full-resolution 48MP iPhone photos, HEIC, ProRAW, and media up to 75 MB without lossy degradation.
           </div>
         </div>
       </div>
@@ -264,9 +396,9 @@
           <span id="stat-attachment-count">0 attachments</span>
         </div>
         <div class="footer-meta">
-          <span>Active Device: <strong id="stat-device-name">Detecting...</strong></span>
+          <span>Active Device: <strong id="stat-device-name" class="clickable-device-name" title="Click to rename device">Detecting...</strong></span>
           <span>•</span>
-          <span>Permanent IndexedDB Storage</span>
+          <span>Pristine IndexedDB Storage</span>
         </div>
       </footer>
     </div>
@@ -301,11 +433,11 @@
     <div class="global-drag-box">
       <svg class="icon icon-xl" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
       <div class="global-drag-title">Drop attachments to add</div>
-      <div class="global-drag-subtitle">Pictures, videos, audio, or files (Max 75 MB • iPhone 48MP supported)</div>
+      <div class="global-drag-subtitle">Pictures, videos, audio, or files (Max 75 MB &bull; Pristine quality preserved)</div>
     </div>
   </div>
 
-  <!-- Share & QR Code Modal Dialog -->
+  <!-- Share & Local QR Code Modal Dialog -->
   <div class="modal-overlay" id="share-modal">
     <div class="modal-dialog">
       <div class="modal-header">
@@ -316,16 +448,43 @@
       </div>
 
       <p style="font-size: 13px; color: var(--text-muted); line-height: 1.5;">
-        Open this exact link on any phone, tablet, laptop, or desktop browser. All devices view and edit this sheet simultaneously in real time.
+        Scan on your phone or open on another device to sync notes and links instantly in real time.
       </p>
 
       <div class="qr-code-box" id="qr-code-box">
-        <!-- Rendered by app.js -->
+        <!-- Rendered with local client-side QRCode engine -->
       </div>
 
       <div class="share-url-box">
         <input type="text" id="share-url-input" class="share-url-input" readonly />
         <button class="btn btn-primary" id="btn-copy-share-url">Copy Link</button>
+      </div>
+
+      <div class="share-url-box" style="margin-top: -6px;">
+        <input type="text" id="share-readonly-input" class="share-url-input" readonly />
+        <button class="btn" id="btn-copy-readonly-url" title="Copy read-only view link">Copy Read-Only</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Keyboard Shortcuts Help Modal -->
+  <div class="modal-overlay" id="shortcuts-modal">
+    <div class="modal-dialog" style="max-width: 420px;">
+      <div class="modal-header">
+        <div class="modal-title">Keyboard Shortcuts</div>
+        <button class="btn-close-modal" id="btn-close-shortcuts" aria-label="Close dialog">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="shortcuts-list">
+        <div class="shortcut-item"><span class="shortcut-desc">Switch to Link Collector</span><kbd>Ctrl / Cmd + 1</kbd></div>
+        <div class="shortcut-item"><span class="shortcut-desc">Switch to Blank Notepad</span><kbd>Ctrl / Cmd + 2</kbd></div>
+        <div class="shortcut-item"><span class="shortcut-desc">Switch to Side-by-Side</span><kbd>Ctrl / Cmd + 3</kbd></div>
+        <div class="shortcut-item"><span class="shortcut-desc">Switch to Attachments</span><kbd>Ctrl / Cmd + 4</kbd></div>
+        <div class="shortcut-item"><span class="shortcut-desc">Focus Link Paste Input</span><kbd>/</kbd></div>
+        <div class="shortcut-item"><span class="shortcut-desc">Paste Link from Anywhere</span><kbd>Ctrl / Cmd + V</kbd></div>
+        <div class="shortcut-item"><span class="shortcut-desc">Toggle Markdown Preview</span><kbd>Ctrl / Cmd + M</kbd></div>
+        <div class="shortcut-item"><span class="shortcut-desc">Close Modals / Overlays</span><kbd>Esc</kbd></div>
       </div>
     </div>
   </div>
@@ -333,13 +492,13 @@
   <!-- Toast Notification Container -->
   <div class="toast-container" id="toast-container"></div>
 
-  <!-- Bundled MQTT, Yjs, and Storage Engine -->
-  <script src="js/sync-bundle.js"></script>
+  <!-- Bundled MQTT, Yjs CRDT, Awareness, JSZip, and local QRCode Engine -->
+  <script src="js/sync-bundle.js?v=2.4.0"></script>
   <!-- Animated Nature Ambience Engine -->
-  <script src="js/nature.js"></script>
+  <script src="js/nature.js?v=2.4.0"></script>
   <!-- Real-Time Sync Engine -->
-  <script src="js/sync.js?v=2.3.0"></script>
+  <script src="js/sync.js?v=2.4.0"></script>
   <!-- UI Controller -->
-  <script src="js/app.js?v=2.3.0"></script>
+  <script src="js/app.js?v=2.4.0"></script>
 </body>
 </html>
