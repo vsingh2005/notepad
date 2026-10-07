@@ -146,13 +146,15 @@
           </div>
         </div>
       </div>
-      <button class="btn btn-primary" id="btn-share-room" title="Share link to view & edit on another device">
-        <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
-        <span>Share / QR</span>
-      </button>
-      <button class="btn btn-icon-only" id="btn-open-shortcuts" title="Keyboard Shortcuts (?)">
-        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
-      </button>
+      <div class="header-share-row">
+        <button class="btn btn-primary" id="btn-share-room" title="Share link to view & edit on another device">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+          <span>Share / QR</span>
+        </button>
+        <button class="btn btn-icon-only" id="btn-open-shortcuts" title="Keyboard Shortcuts (?)">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -406,8 +408,9 @@
     </div>
   </main>
 
-  <!-- Right Sidebar for Navigation Tabs -->
+  <!-- Right Sidebar for Navigation Tabs & Quick Actions -->
   <aside class="right-sidebar">
+    <div class="sidebar-section-title">Views</div>
     <nav class="main-tabs-container">
       <div class="notebook-tabs-group" role="tablist" aria-label="Notepad Views">
         <button class="notebook-tab-btn" id="tab-links" type="button" role="tab" aria-selected="false">
@@ -435,34 +438,37 @@
       </div>
     </nav>
 
-    <!-- Quick Paste Link Tray (Visible in Link Collector and Side-by-Side views) -->
+    <!-- Quick Paste Link Tray (Visible across views on desktop) -->
     <section class="quick-paste-container" id="quick-paste-container">
+      <div class="sidebar-section-title">Quick Add Link</div>
       <div class="quick-paste-box">
-        <span class="paste-input-icon">
-          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-        </span>
-        <input 
-          type="text" 
-          id="quick-paste-input" 
-          class="quick-paste-input" 
-          placeholder="Paste a link here (or press Cmd/Ctrl+V anywhere)..." 
-          autocomplete="off"
-          spellcheck="false"
-        />
+        <div class="quick-paste-input-wrap">
+          <span class="paste-input-icon">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+          </span>
+          <input 
+            type="text" 
+            id="quick-paste-input" 
+            class="quick-paste-input" 
+            placeholder="Paste URL or link here..." 
+            autocomplete="off"
+            spellcheck="false"
+          />
+        </div>
         <div class="paste-box-actions">
           <button class="btn" id="btn-paste-clipboard" title="Paste directly from your clipboard">
             <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-            <span class="btn-text-full">Paste Clipboard</span>
+            <span class="btn-text-full">Paste</span>
           </button>
           <button class="btn btn-primary" id="btn-add-link">
             <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-            <span>Add Link</span>
+            <span>Add</span>
           </button>
         </div>
       </div>
       <div class="quick-paste-hint">
-        <span>Auto-syncs across all browsers & devices in real time with Yjs CRDT • Clean links without tracking parameters</span>
-        <span>Shortcut: <kbd class="kbd-shortcut">/</kbd> focus &bull; <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd> paste</span>
+        <span class="quick-paste-sync-desc">Auto-syncs across all browsers & devices in real time with Yjs CRDT</span>
+        <span class="quick-paste-shortcut-desc"><kbd class="kbd-shortcut">/</kbd> focus &bull; <kbd class="kbd-shortcut">Ctrl+V</kbd> paste</span>
       </div>
     </section>
   </aside>
