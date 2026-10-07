@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Isometra:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=2.4.0">
+  <link rel="stylesheet" href="css/style.css?v=2.4.2">
 </head>
 <body class="view-split" data-ruling="dots">
 
@@ -369,7 +369,7 @@
           <span class="transfer-progress-text" id="transfer-progress-text">Streaming: 0%</span>
         </div>
 
-        <input type="file" id="attachment-file-input" multiple accept="image/*,video/*,audio/*,.heic,.heif,.dng,.pdf,.txt,.md,.doc,.docx,.xlsx,.pptx,.zip" class="visually-hidden-file-input" />
+        <input type="file" id="attachment-file-input" multiple accept="image/*,video/*,audio/*,.heic,.heif,.dng,.pdf,.txt,.md,.doc,.docx,.xlsx,.pptx,.zip" class="visually-hidden-file-input" style="position: fixed !important; top: -10000px !important; left: -10000px !important; width: 1px !important; height: 1px !important; opacity: 0 !important; pointer-events: none !important; clip: rect(0, 0, 0, 0) !important; z-index: -9999 !important;" />
 
         <!-- Cards container identical to link-cards-container -->
         <div class="link-cards-container" id="attachments-cards-grid">
@@ -563,12 +563,12 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Bundled MQTT, Yjs CRDT, Awareness, JSZip, and local QRCode Engine -->
-  <script src="js/sync-bundle.js?v=2.4.0"></script>
+  <script src="js/sync-bundle.js?v=2.4.2"></script>
   <!-- Animated Nature Ambience Engine -->
-  <script src="js/nature.js?v=2.4.0"></script>
+  <script src="js/nature.js?v=2.4.2"></script>
   <!-- Real-Time Sync Engine -->
-  <script src="js/sync.js?v=2.4.0"></script>
+  <script src="js/sync.js?v=2.4.2"></script>
   <!-- UI Controller -->
-  <script src="js/app.js?v=2.4.0"></script>
+  <script src="js/app.js?v=2.4.2"></script>
 </body>
 </html>

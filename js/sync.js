@@ -800,7 +800,10 @@ class SyncEngine {
             thumbData: item.thumbData || (existing ? existing.thumbData : null),
             blob: null,
             isDownloading: true,
-            sourceDeviceId: item.sourceDeviceId || msg.senderId
+            sourceDeviceId: item.sourceDeviceId || item.uploaderId || msg.senderId,
+            sourceDeviceName: item.sourceDeviceName || item.uploaderName || 'Device',
+            uploaderId: item.uploaderId || item.sourceDeviceId || msg.senderId,
+            uploaderName: item.uploaderName || item.sourceDeviceName || 'Device'
           };
           await window.AttachmentDB.put(metaItem);
 
@@ -828,11 +831,11 @@ class SyncEngine {
       timestamp: Date.now()
     };
     try {
-      // Send directly to the target peer if known, AND broadcast to any online peer
       if (targetPeerId && targetPeerId !== this.deviceId) {
         this.client.publish(`${this.topicPrefix}/attachments/req/${targetPeerId}`, JSON.stringify(reqPayload), { qos: 0 });
+      } else {
+        this.client.publish(`${this.topicPrefix}/attachments/req/any`, JSON.stringify(reqPayload), { qos: 0 });
       }
-      this.client.publish(`${this.topicPrefix}/attachments/req/any`, JSON.stringify(reqPayload), { qos: 0 });
     } catch (e) {}
   }
 
@@ -850,12 +853,15 @@ class SyncEngine {
   async streamAttachmentBinary(item, targetPeerId) {
     if (!this.client || !this.isConnected || !item || !item.blob) return;
     const transferKey = `${item.id}_${targetPeerId}`;
-    if (this.activeUploads.has(transferKey)) return;
-    this.activeUploads.set(transferKey, true);
+    if (this.activeUploads.has(transferKey)) {
+      const startedAt = this.activeUploads.get(transferKey);
+      if (Date.now() - startedAt < 12000) return;
+    }
+    this.activeUploads.set(transferKey, Date.now());
 
     try {
       const buffer = await item.blob.arrayBuffer();
-      const chunkSize = 49152; // 48 KB binary chunks (optimal balance of throughput & low packet overhead)
+      const chunkSize = 16384; // 16 KB binary chunks (fits safely within mobile WebSocket and broker frame limits)
       const totalChunks = Math.ceil(buffer.byteLength / chunkSize);
 
       if (this.onTransferProgress) {
@@ -870,8 +876,8 @@ class SyncEngine {
       for (let i = 0; i < totalChunks; i++) {
         // Handle transient network reconnection
         let waitRetries = 0;
-        while ((!this.client || !this.isConnected) && waitRetries < 20) {
-          await new Promise(r => setTimeout(r, 400));
+        while ((!this.client || !this.isConnected) && waitRetries < 35) {
+          await new Promise(r => setTimeout(r, 300));
           waitRetries++;
         }
         if (!this.client || !this.isConnected) break;
@@ -889,6 +895,10 @@ class SyncEngine {
           timestamp: item.timestamp,
           note: item.note || '',
           thumbData: item.thumbData || null,
+          uploaderId: item.uploaderId || this.deviceId,
+          uploaderName: item.uploaderName || this.deviceName,
+          sourceDeviceId: item.sourceDeviceId || this.deviceId,
+          sourceDeviceName: item.sourceDeviceName || this.deviceName,
           chunkIndex: i,
           totalChunks: totalChunks,
           chunkData: chunkB64,
@@ -907,8 +917,11 @@ class SyncEngine {
           });
         }
 
-        // Pacing delay (25ms) to prevent flooding WebSocket and broker buffers
-        await new Promise(r => setTimeout(r, 25));
+        // Pacing delay (35ms) to give WebSocket buffer time to drain
+        await new Promise(r => setTimeout(r, 35));
+        if (i % 10 === 0) {
+          await new Promise(r => setTimeout(r, 20)); // Event loop breath
+        }
       }
     } catch (err) {
       console.warn('[SyncEngine] Stream error:', err);
@@ -955,7 +968,7 @@ class SyncEngine {
     if (state.received < state.totalChunks) {
       state.checkTimer = setTimeout(() => {
         this.checkAndRequestMissingChunks(attId);
-      }, 2000);
+      }, 1500);
     } else {
       clearTimeout(state.checkTimer);
       // Reassemble complete pristine ArrayBuffer
@@ -987,7 +1000,11 @@ class SyncEngine {
         note: packet.note || '',
         thumbData: packet.thumbData || null,
         blob: blob,
-        isDownloading: false
+        isDownloading: false,
+        uploaderId: packet.uploaderId || (state.meta && state.meta.uploaderId) || packet.senderId,
+        uploaderName: packet.uploaderName || (state.meta && state.meta.uploaderName) || 'Device',
+        sourceDeviceId: packet.sourceDeviceId || (state.meta && state.meta.sourceDeviceId) || packet.senderId,
+        sourceDeviceName: packet.sourceDeviceName || (state.meta && state.meta.sourceDeviceName) || 'Device'
       };
 
       if (window.AttachmentDB) {
@@ -1004,9 +1021,11 @@ class SyncEngine {
     const state = this.incomingTransfers.get(attId);
     if (!state || state.received >= state.totalChunks) return;
 
-    if (state.retryCount >= 4) {
-      console.warn(`[SyncEngine] Transfer ${attId} timed out after 4 retries.`);
+    if (state.retryCount >= 3) {
+      console.warn(`[SyncEngine] Transfer ${attId} stalled, requesting fresh stream from peer`);
+      const peerId = state.senderId;
       this.incomingTransfers.delete(attId);
+      this.requestAttachmentStreaming(attId, peerId);
       return;
     }
     state.retryCount++;
@@ -1014,7 +1033,7 @@ class SyncEngine {
     const missingIndices = [];
     for (let i = 0; i < state.totalChunks; i++) {
       if (!state.chunks[i]) missingIndices.push(i);
-      if (missingIndices.length >= 50) break;
+      if (missingIndices.length >= 40) break;
     }
 
     if (missingIndices.length > 0 && this.client && this.isConnected) {
@@ -1041,7 +1060,7 @@ class SyncEngine {
 
     try {
       const buffer = await item.blob.arrayBuffer();
-      const chunkSize = 49152;
+      const chunkSize = 16384;
       const totalChunks = Math.ceil(buffer.byteLength / chunkSize);
 
       for (const i of req.missingIndices) {
@@ -1061,6 +1080,10 @@ class SyncEngine {
           timestamp: item.timestamp,
           note: item.note || '',
           thumbData: item.thumbData || null,
+          uploaderId: item.uploaderId || this.deviceId,
+          uploaderName: item.uploaderName || this.deviceName,
+          sourceDeviceId: item.sourceDeviceId || this.deviceId,
+          sourceDeviceName: item.sourceDeviceName || this.deviceName,
           chunkIndex: i,
           totalChunks: totalChunks,
           chunkData: chunkB64,
@@ -1068,7 +1091,7 @@ class SyncEngine {
         };
 
         this.client.publish(`${this.topicPrefix}/attachments/chunk/${req.requesterId}/${item.id}`, JSON.stringify(packet), { qos: 0 });
-        await new Promise(r => setTimeout(r, 20));
+        await new Promise(r => setTimeout(r, 25));
       }
     } catch (err) {
       console.warn('[SyncEngine] Missing chunks stream error:', err);
@@ -1098,7 +1121,10 @@ class SyncEngine {
       thumbData: item.thumbData || null,
       timestamp: item.timestamp,
       note: item.note || '',
-      sourceDeviceId: this.deviceId
+      sourceDeviceId: item.sourceDeviceId || this.deviceId,
+      sourceDeviceName: item.sourceDeviceName || this.deviceName,
+      uploaderId: item.uploaderId || item.sourceDeviceId || this.deviceId,
+      uploaderName: item.uploaderName || item.sourceDeviceName || this.deviceName
     };
 
     this.attachmentsManifest = this.attachmentsManifest.filter(a => a.id !== item.id);

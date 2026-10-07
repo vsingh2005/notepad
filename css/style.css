@@ -2165,6 +2165,27 @@ body.view-attachments .attachments-view {
   border-color: rgba(245, 158, 11, 0.3);
 }
 
+.domain-badge.badge-uploader {
+  background: var(--bg-paper-alt);
+  color: var(--text-muted);
+  border-color: var(--border-subtle);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-weight: 600;
+  max-width: 160px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.domain-badge.badge-uploader .uploader-icon {
+  width: 11px;
+  height: 11px;
+  stroke: var(--primary);
+  flex-shrink: 0;
+}
+
 .visually-hidden-file-input {
   position: fixed !important;
   top: -9999px !important;
@@ -2672,6 +2693,25 @@ body.view-attachments .attachments-view {
   background: var(--bg-paper-alt);
   border: 1px solid var(--border-subtle);
   color: var(--text-main);
+}
+
+@media (max-width: 768px) {
+  .connection-popover {
+    position: fixed !important;
+    top: 56px !important;
+    left: 12px !important;
+    right: 12px !important;
+    width: auto !important;
+    max-width: calc(100vw - 24px) !important;
+    transform: translateY(6px) scale(0.97) !important;
+    z-index: 1000 !important;
+    box-sizing: border-box !important;
+    margin: 0 auto !important;
+  }
+
+  .connection-popover.active {
+    transform: translateY(0) scale(1) !important;
+  }
 }
 
 @media (max-width: 480px) {

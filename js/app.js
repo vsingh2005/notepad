@@ -486,15 +486,22 @@
       }
     };
 
+    let progressStallTimer = null;
     sync.onTransferProgress = ({ attachmentId, name, percent, type }) => {
       if (transferProgressContainer && transferProgressFill && transferProgressText) {
         transferProgressContainer.style.display = 'flex';
         transferProgressFill.style.width = `${percent}%`;
         transferProgressText.textContent = `${type === 'upload' ? 'Sending' : 'Downloading'} "${name}": ${percent}%`;
+        clearTimeout(progressStallTimer);
         if (percent >= 100) {
           setTimeout(() => {
-            transferProgressContainer.style.display = 'none';
+            if (transferProgressContainer) transferProgressContainer.style.display = 'none';
           }, 1500);
+        } else {
+          // If transfer stalls for more than 10 seconds, auto-hide progress bar
+          progressStallTimer = setTimeout(() => {
+            if (transferProgressContainer) transferProgressContainer.style.display = 'none';
+          }, 10000);
         }
       }
     };
@@ -1233,6 +1240,9 @@
       const thumbData = await generateThumbnail(file);
       const category = getFileCategory(file.type, file.name);
 
+      const uploaderId = (window.syncEngine && window.syncEngine.deviceId) || 'dev_local';
+      const uploaderName = (window.syncEngine && window.syncEngine.deviceName) || 'My Device';
+
       const item = {
         id: 'att_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
         name: file.name,
@@ -1243,7 +1253,11 @@
         thumbData: thumbData,
         blob: file, // Store pure, uncompressed original Blob!
         timestamp: Date.now(),
-        note: ''
+        note: '',
+        uploaderId: uploaderId,
+        uploaderName: uploaderName,
+        sourceDeviceId: uploaderId,
+        sourceDeviceName: uploaderName
       };
 
       await AttachmentDB.put(item);
@@ -1346,6 +1360,8 @@
                        item.category === 'audio' ? 'badge-audio' : 'badge-doc';
 
     const syncStatusBadge = !hasFullBlob ? `<span class="domain-badge badge-syncing">SYNCING</span>` : '';
+    const uploaderDisplay = item.uploaderName || item.sourceDeviceName || (item.sourceDeviceId ? `Device (${item.sourceDeviceId.slice(-4)})` : 'Device');
+    const uploaderIdDisplay = item.uploaderId || item.sourceDeviceId || '';
 
     card.innerHTML = `
       <div class="link-card-left">
@@ -1354,6 +1370,10 @@
           <div class="link-badge-row">
             <span class="domain-badge ${badgeClass}">${escapeHtml(item.category.toUpperCase())}</span>
             ${syncStatusBadge}
+            <span class="domain-badge badge-uploader" title="Uploaded by: ${escapeHtml(uploaderDisplay)} (Device ID: ${escapeHtml(uploaderIdDisplay)})">
+              <svg class="icon uploader-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+              <span>${escapeHtml(uploaderDisplay)}</span>
+            </span>
             <span class="attachment-size-text">${escapeHtml(item.sizeFormatted || '')}</span>
             <span class="link-time">${formattedTime}</span>
           </div>
@@ -1418,7 +1438,9 @@
     if (!mediaLightboxModal) return;
     lightboxFilename.textContent = item.name;
     const isReady = !!item.blob;
-    lightboxFilemeta.textContent = `${item.category.toUpperCase()} • ${item.sizeFormatted} • ${formatTimestamp(item.timestamp)} ${!isReady ? '• Syncing from peer' : ''}`;
+    const uploaderDisplay = item.uploaderName || item.sourceDeviceName || 'Device';
+    const uploaderIdDisplay = item.uploaderId || item.sourceDeviceId || 'local';
+    lightboxFilemeta.textContent = `${item.category.toUpperCase()} • ${item.sizeFormatted} • By: ${uploaderDisplay} (${uploaderIdDisplay.slice(0, 10)}) • ${formatTimestamp(item.timestamp)} ${!isReady ? '• Syncing from peer' : ''}`;
 
     const url = previewUrl || (item.blob ? URL.createObjectURL(item.blob) : '');
     lightboxDownloadBtn.onclick = (e) => {
