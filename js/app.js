@@ -479,6 +479,11 @@
     sync.onAttachmentDataReceived = async (fullItem) => {
       await loadAttachments(false);
       showToast(`Pristine media "${fullItem.name}" synced!`);
+      const matched = currentAttachments.find(a => a.id === fullItem.id);
+      if (matched && matched.autoDownloadWhenReady) {
+        matched.autoDownloadWhenReady = false;
+        downloadAttachment(fullItem);
+      }
     };
 
     sync.onTransferProgress = ({ attachmentId, name, percent, type }) => {
@@ -1131,7 +1136,84 @@
     return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
   }
 
-  function handleFiles(fileList) {
+  // Convert iOS HEIC/HEIF photos to standard high-quality JPEG if decodable, ensuring compatibility with PC browsers & Windows Photos
+  async function convertHeicToJpegIfPossible(file) {
+    const isHeic = /\.(heic|heif)$/i.test(file.name) || (file.type && /image\/(heic|heif)/i.test(file.type));
+    if (!isHeic) return file;
+
+    try {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.src = url;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        setTimeout(() => reject(new Error('HEIC decode timeout')), 5000);
+      });
+      URL.revokeObjectURL(url);
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0);
+
+      const convertedBlob = await new Promise(resolve => canvas.toBlob(resolve, 'image/jpeg', 0.95));
+      if (convertedBlob) {
+        const newName = file.name.replace(/\.(heic|heif)$/i, '.jpg');
+        return new File([convertedBlob], newName, { type: 'image/jpeg' });
+      }
+    } catch (err) {
+      console.warn('[SyncPad] HEIC conversion skipped or not supported natively:', err);
+    }
+    return file;
+  }
+
+  // Generate lightweight base64 thumbnail for instant preview on all devices
+  async function generateThumbnail(fileOrBlob) {
+    try {
+      const type = (fileOrBlob.type || '').toLowerCase();
+      const name = (fileOrBlob.name || '').toLowerCase();
+      const isImg = type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp|svg|avif)$/i.test(name);
+      if (!isImg) return null;
+
+      const url = URL.createObjectURL(fileOrBlob);
+      const img = new Image();
+      img.src = url;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+        setTimeout(() => reject(new Error('Thumb decode timeout')), 3500);
+      });
+      URL.revokeObjectURL(url);
+
+      const maxDim = 120;
+      let w = img.naturalWidth || img.width || 120;
+      let h = img.naturalHeight || img.height || 120;
+      if (w > h) {
+        if (w > maxDim) {
+          h = Math.round((h * maxDim) / w);
+          w = maxDim;
+        }
+      } else {
+        if (h > maxDim) {
+          w = Math.round((w * maxDim) / h);
+          h = maxDim;
+        }
+      }
+
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, w);
+      canvas.height = Math.max(1, h);
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      return canvas.toDataURL('image/jpeg', 0.75);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  async function handleFiles(fileList) {
     if (isReadOnlyMode) {
       showToast('Read-only mode: uploading files is disabled');
       return;
@@ -1139,14 +1221,18 @@
     if (!fileList || fileList.length === 0) return;
     const files = Array.from(fileList);
 
-    files.forEach(async (file) => {
-      if (file.size > MAX_FILE_SIZE_BYTES) {
-        const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
-        showToast(`File "${file.name}" (${sizeMB} MB) exceeds the 75 MB limit.`);
-        return;
+    for (const rawFile of files) {
+      if (rawFile.size > MAX_FILE_SIZE_BYTES) {
+        const sizeMB = (rawFile.size / (1024 * 1024)).toFixed(1);
+        showToast(`File "${rawFile.name}" (${sizeMB} MB) exceeds the 75 MB limit.`);
+        continue;
       }
 
+      // Convert HEIC if natively decodable (e.g. on iOS Safari)
+      const file = await convertHeicToJpegIfPossible(rawFile);
+      const thumbData = await generateThumbnail(file);
       const category = getFileCategory(file.type, file.name);
+
       const item = {
         id: 'att_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
         name: file.name,
@@ -1154,6 +1240,7 @@
         category: category,
         size: file.size,
         sizeFormatted: formatBytes(file.size),
+        thumbData: thumbData,
         blob: file, // Store pure, uncompressed original Blob!
         timestamp: Date.now(),
         note: ''
@@ -1170,8 +1257,8 @@
         window.syncEngine.syncAttachmentManifestEntry(item);
       }
 
-      showToast(`Attached "${file.name}" (Pristine ${item.sizeFormatted})`);
-    });
+      showToast(`Attached "${file.name}" (${item.sizeFormatted})`);
+    }
   }
 
   function renderAttachments() {
@@ -1213,22 +1300,26 @@
     card.setAttribute('data-id', item.id);
 
     const formattedTime = formatTimestamp(item.timestamp);
+    const hasFullBlob = !!item.blob;
     let previewUrl = '';
     if (item.blob) {
       try {
         previewUrl = URL.createObjectURL(item.blob);
         objectUrlsToRevoke.add(previewUrl);
       } catch (e) {}
+    } else if (item.thumbData) {
+      previewUrl = item.thumbData;
     }
 
     let thumbHtml = '';
     if (item.category === 'image' && previewUrl) {
       thumbHtml = `
-        <div class="attachment-thumb-wrap" title="Preview original photo">
+        <div class="attachment-thumb-wrap ${!hasFullBlob ? 'thumb-syncing' : ''}" title="${hasFullBlob ? 'Preview original photo' : 'Syncing file from peer...'}">
           <img class="attachment-thumb-img" src="${previewUrl}" alt="${escapeHtml(item.name)}" loading="lazy" />
+          ${!hasFullBlob ? `<div class="attachment-thumb-sync-badge" title="Syncing file from peer">⟳</div>` : ''}
         </div>
       `;
-    } else if (item.category === 'video' && previewUrl) {
+    } else if (item.category === 'video' && previewUrl && hasFullBlob) {
       thumbHtml = `
         <div class="attachment-thumb-wrap" title="Play video">
           <video class="attachment-thumb-video" src="${previewUrl}" preload="metadata"></video>
@@ -1243,8 +1334,9 @@
       `;
     } else {
       thumbHtml = `
-        <div class="attachment-thumb-wrap" title="Download file">
+        <div class="attachment-thumb-wrap ${!hasFullBlob ? 'thumb-syncing' : ''}" title="${hasFullBlob ? 'Download file' : 'Syncing file from peer...'}">
           <div class="attachment-thumb-doc-icon">${ICONS.file}</div>
+          ${!hasFullBlob ? `<div class="attachment-thumb-sync-badge" title="Syncing file from peer">⟳</div>` : ''}
         </div>
       `;
     }
@@ -1253,12 +1345,15 @@
                        item.category === 'video' ? 'badge-video' :
                        item.category === 'audio' ? 'badge-audio' : 'badge-doc';
 
+    const syncStatusBadge = !hasFullBlob ? `<span class="domain-badge badge-syncing">SYNCING</span>` : '';
+
     card.innerHTML = `
       <div class="link-card-left">
         ${thumbHtml}
         <div class="link-details">
           <div class="link-badge-row">
             <span class="domain-badge ${badgeClass}">${escapeHtml(item.category.toUpperCase())}</span>
+            ${syncStatusBadge}
             <span class="attachment-size-text">${escapeHtml(item.sizeFormatted || '')}</span>
             <span class="link-time">${formattedTime}</span>
           </div>
@@ -1274,11 +1369,11 @@
         </div>
       </div>
       <div class="link-card-actions">
-        <button type="button" class="btn-card-action open-btn btn-preview" title="Preview media">
-          <span>Preview</span>
+        <button type="button" class="btn-card-action open-btn btn-preview" title="${hasFullBlob ? 'Preview media' : 'Preview / Sync media'}">
+          <span>${hasFullBlob ? 'Preview' : 'View'}</span>
           ${ICONS.eye}
         </button>
-        <button type="button" class="btn-card-action copy-btn btn-download" title="Download original file">
+        <button type="button" class="btn-card-action copy-btn btn-download" title="${hasFullBlob ? 'Download file' : 'Sync & download file from peer'}">
           ${ICONS.download}
         </button>
         ${!isReadOnlyMode ? `
@@ -1322,11 +1417,14 @@
   function openLightbox(item, previewUrl) {
     if (!mediaLightboxModal) return;
     lightboxFilename.textContent = item.name;
-    lightboxFilemeta.textContent = `${item.category.toUpperCase()} • ${item.sizeFormatted} • ${formatTimestamp(item.timestamp)}`;
+    const isReady = !!item.blob;
+    lightboxFilemeta.textContent = `${item.category.toUpperCase()} • ${item.sizeFormatted} • ${formatTimestamp(item.timestamp)} ${!isReady ? '• Syncing from peer' : ''}`;
 
     const url = previewUrl || (item.blob ? URL.createObjectURL(item.blob) : '');
-    lightboxDownloadBtn.href = url;
-    lightboxDownloadBtn.download = item.name;
+    lightboxDownloadBtn.onclick = (e) => {
+      e.preventDefault();
+      downloadAttachment(item, previewUrl);
+    };
 
     lightboxContentWrap.innerHTML = '';
     if (item.category === 'image' && url) {
@@ -1334,14 +1432,20 @@
       img.src = url;
       img.alt = item.name;
       lightboxContentWrap.appendChild(img);
-    } else if (item.category === 'video' && url) {
+      if (!isReady) {
+        const syncNotice = document.createElement('div');
+        syncNotice.className = 'lightbox-sync-banner';
+        syncNotice.innerHTML = `<span>Displaying preview thumbnail. Full file is syncing from your peer device...</span>`;
+        lightboxContentWrap.appendChild(syncNotice);
+      }
+    } else if (item.category === 'video' && url && isReady) {
       const video = document.createElement('video');
       video.src = url;
       video.controls = true;
       video.autoplay = true;
       video.playsInline = true;
       lightboxContentWrap.appendChild(video);
-    } else if (item.category === 'audio' && url) {
+    } else if (item.category === 'audio' && url && isReady) {
       const audio = document.createElement('audio');
       audio.src = url;
       audio.controls = true;
@@ -1352,9 +1456,16 @@
         <div style="text-align: center; padding: 40px; color: var(--text-main);">
           <div style="font-size: 16px; font-weight: 700; margin-bottom: 8px;">${escapeHtml(item.name)}</div>
           <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px;">${escapeHtml(item.sizeFormatted)} • ${escapeHtml(item.type)}</div>
-          <a href="${url}" download="${escapeHtml(item.name)}" class="btn btn-primary" style="display: inline-flex;">Download File</a>
+          ${!isReady ? '<div class="lightbox-sync-banner" style="margin: 0 auto 16px auto;">Waiting for peer device to transfer full file data...</div>' : ''}
+          <button type="button" id="lightbox-action-btn" class="btn btn-primary" style="display: inline-flex;">
+            ${isReady ? 'Download File' : 'Sync & Download from Peer'}
+          </button>
         </div>
       `;
+      const actionBtn = lightboxContentWrap.querySelector('#lightbox-action-btn');
+      if (actionBtn) {
+        actionBtn.addEventListener('click', () => downloadAttachment(item, previewUrl));
+      }
     }
 
     mediaLightboxModal.classList.add('active');
@@ -1366,18 +1477,47 @@
     lightboxContentWrap.innerHTML = '';
   }
 
-  function downloadAttachment(item, previewUrl) {
-    const url = previewUrl || (item.blob ? URL.createObjectURL(item.blob) : '');
-    if (!url) {
-      showToast('File data is still downloading from peer...');
+  async function downloadAttachment(item, previewUrl) {
+    if (!item.blob) {
+      item.autoDownloadWhenReady = true;
+      showToast(`Syncing "${item.name}" from your peer device... Download will start as soon as it arrives.`);
+      if (window.syncEngine && window.syncEngine.requestAttachmentStreaming) {
+        window.syncEngine.requestAttachmentStreaming(item.id, item.sourceDeviceId);
+      }
       return;
     }
+
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+                  (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+
+    // If on iOS, offer native iOS Share Sheet so the user can easily "Save Image" to Photos!
+    if (isIOS && navigator.canShare) {
+      try {
+        const file = new File([item.blob], item.name, { type: item.type || 'image/jpeg' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: item.name
+          });
+          return;
+        }
+      } catch (err) {
+        if (err.name === 'AbortError') return; // User tapped cancel on iOS share sheet
+      }
+    }
+
+    // Standard download trigger for PC Windows, Mac, Linux, Android
+    const blobUrl = (previewUrl && item.blob) ? previewUrl : URL.createObjectURL(item.blob);
     const a = document.createElement('a');
-    a.href = url;
+    a.href = blobUrl;
     a.download = item.name;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
+    if (blobUrl !== previewUrl) {
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 15000);
+    }
+    showToast(`Downloading "${item.name}"`);
   }
 
   async function deleteAttachment(id) {
@@ -1414,13 +1554,24 @@
       return;
     }
 
-    showToast(`Archiving ${currentAttachments.length} files into ZIP...`);
-    const zip = new window.JSZip();
-
-    for (const item of currentAttachments) {
-      if (item.blob) {
-        zip.file(item.name, item.blob);
+    const readyItems = currentAttachments.filter(a => !!a.blob);
+    if (readyItems.length === 0) {
+      showToast('Files are still syncing from your peer device. Please ensure your device is connected.');
+      if (window.syncEngine && window.syncEngine.requestMissingAttachments) {
+        window.syncEngine.requestMissingAttachments();
       }
+      return;
+    }
+
+    if (readyItems.length < currentAttachments.length) {
+      showToast(`Archiving ${readyItems.length} of ${currentAttachments.length} files (${currentAttachments.length - readyItems.length} still syncing from peer)...`);
+    } else {
+      showToast(`Archiving ${readyItems.length} files into ZIP...`);
+    }
+
+    const zip = new window.JSZip();
+    for (const item of readyItems) {
+      zip.file(item.name, item.blob);
     }
 
     try {
@@ -1504,11 +1655,27 @@
 
     // 2. Global paste listener
     window.addEventListener('paste', (e) => {
-      const clipboardFiles = (e.clipboardData && e.clipboardData.files) ? e.clipboardData.files : null;
-      if (clipboardFiles && clipboardFiles.length > 0) {
-        e.preventDefault();
-        handleFiles(clipboardFiles);
-        return;
+      if (e.clipboardData) {
+        const files = [];
+        if (e.clipboardData.files && e.clipboardData.files.length > 0) {
+          for (let i = 0; i < e.clipboardData.files.length; i++) {
+            files.push(e.clipboardData.files[i]);
+          }
+        } else if (e.clipboardData.items && e.clipboardData.items.length > 0) {
+          for (let i = 0; i < e.clipboardData.items.length; i++) {
+            const it = e.clipboardData.items[i];
+            if (it.kind === 'file') {
+              const f = it.getAsFile();
+              if (f) files.push(f);
+            }
+          }
+        }
+        if (files.length > 0) {
+          e.preventDefault();
+          switchView('attachments');
+          handleFiles(files);
+          return;
+        }
       }
 
       const activeTag = document.activeElement ? document.activeElement.tagName.toLowerCase() : '';
@@ -1767,8 +1934,8 @@
 
     if (btnHeaderAttach) {
       btnHeaderAttach.addEventListener('click', () => {
-        switchView('attachments');
         if (attachmentFileInput) attachmentFileInput.click();
+        switchView('attachments');
       });
     }
 

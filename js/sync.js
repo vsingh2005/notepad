@@ -288,6 +288,11 @@ class SyncEngine {
           this.publishAwarenessUpdate(update);
         }
       }
+
+      // When remote peers join or update, check if we need to request any missing attachments
+      if (added && added.length > 0) {
+        setTimeout(() => this.requestMissingAttachments(), 800);
+      }
     });
   }
 
@@ -383,13 +388,18 @@ class SyncEngine {
           `${this.topicPrefix}/awareness`,
           `${this.topicPrefix}/attachments/manifest`,
           `${this.topicPrefix}/attachments/req/${this.deviceId}`,
-          `${this.topicPrefix}/attachments/chunk/${this.deviceId}/+`
+          `${this.topicPrefix}/attachments/req/any`,
+          `${this.topicPrefix}/attachments/chunk/${this.deviceId}/+`,
+          `${this.topicPrefix}/attachments/missing/${this.deviceId}`,
+          `${this.topicPrefix}/attachments/missing/any`
         ];
 
         this.client.subscribe(topics, { qos: 1 }, (err) => {
           if (!err) {
             // Send initial awareness
             this.broadcastAwareness();
+            // Automatically request any missing attachment binaries from online peers
+            setTimeout(() => this.requestMissingAttachments(), 600);
           }
         });
       });
@@ -468,10 +478,12 @@ class SyncEngine {
         }
       } else if (topic === `${this.topicPrefix}/attachments/manifest`) {
         this.handleIncomingAttachmentsManifest(msg);
-      } else if (topic.startsWith(`${this.topicPrefix}/attachments/req/${this.deviceId}`)) {
+      } else if (topic.startsWith(`${this.topicPrefix}/attachments/req/${this.deviceId}`) || topic === `${this.topicPrefix}/attachments/req/any`) {
         this.handleAttachmentDataRequest(msg);
       } else if (topic.startsWith(`${this.topicPrefix}/attachments/chunk/${this.deviceId}`)) {
         this.handleIncomingAttachmentChunk(msg);
+      } else if (topic.startsWith(`${this.topicPrefix}/attachments/missing/${this.deviceId}`) || topic === `${this.topicPrefix}/attachments/missing/any`) {
+        this.handleMissingChunksRequest(msg);
       }
     } catch (e) {
       console.warn('[SyncEngine] Parse incoming error:', e);
@@ -772,8 +784,10 @@ class SyncEngine {
       // Check if any incoming attachment needs full data
       for (const item of msg.attachments) {
         const existing = await window.AttachmentDB.get(item.id);
-        if (!existing) {
-          // Put meta placeholder into IndexedDB
+        const needsData = !existing || !existing.blob;
+
+        if (needsData) {
+          // Put meta placeholder into IndexedDB (preserving thumbnail if available)
           const metaItem = {
             id: item.id,
             name: item.name,
@@ -783,13 +797,14 @@ class SyncEngine {
             sizeFormatted: item.sizeFormatted,
             timestamp: item.timestamp,
             note: item.note || '',
+            thumbData: item.thumbData || (existing ? existing.thumbData : null),
             blob: null,
             isDownloading: true,
             sourceDeviceId: item.sourceDeviceId || msg.senderId
           };
           await window.AttachmentDB.put(metaItem);
 
-          // Request full file streaming
+          // Request full file streaming from peers
           if (metaItem.sourceDeviceId && metaItem.sourceDeviceId !== this.deviceId) {
             this.requestAttachmentStreaming(item.id, metaItem.sourceDeviceId);
           }
@@ -806,19 +821,24 @@ class SyncEngine {
   }
 
   requestAttachmentStreaming(attachmentId, targetPeerId) {
-    if (!this.client || !this.isConnected || !targetPeerId) return;
+    if (!this.client || !this.isConnected) return;
     const reqPayload = {
       attachmentId: attachmentId,
       requesterId: this.deviceId,
       timestamp: Date.now()
     };
     try {
-      this.client.publish(`${this.topicPrefix}/attachments/req/${targetPeerId}`, JSON.stringify(reqPayload), { qos: 1 });
+      // Send directly to the target peer if known, AND broadcast to any online peer
+      if (targetPeerId && targetPeerId !== this.deviceId) {
+        this.client.publish(`${this.topicPrefix}/attachments/req/${targetPeerId}`, JSON.stringify(reqPayload), { qos: 0 });
+      }
+      this.client.publish(`${this.topicPrefix}/attachments/req/any`, JSON.stringify(reqPayload), { qos: 0 });
     } catch (e) {}
   }
 
   async handleAttachmentDataRequest(req) {
     if (!req || !req.attachmentId || !req.requesterId) return;
+    if (req.requesterId === this.deviceId) return; // Do not answer self
     if (!window.AttachmentDB) return;
 
     const item = await window.AttachmentDB.get(req.attachmentId);
@@ -828,14 +848,34 @@ class SyncEngine {
   }
 
   async streamAttachmentBinary(item, targetPeerId) {
-    if (!this.client || !this.isConnected) return;
+    if (!this.client || !this.isConnected || !item || !item.blob) return;
+    const transferKey = `${item.id}_${targetPeerId}`;
+    if (this.activeUploads.has(transferKey)) return;
+    this.activeUploads.set(transferKey, true);
 
     try {
       const buffer = await item.blob.arrayBuffer();
-      const chunkSize = 32768; // 32 KB binary chunks
+      const chunkSize = 49152; // 48 KB binary chunks (optimal balance of throughput & low packet overhead)
       const totalChunks = Math.ceil(buffer.byteLength / chunkSize);
 
+      if (this.onTransferProgress) {
+        this.onTransferProgress({
+          attachmentId: item.id,
+          name: item.name,
+          percent: 0,
+          type: 'upload'
+        });
+      }
+
       for (let i = 0; i < totalChunks; i++) {
+        // Handle transient network reconnection
+        let waitRetries = 0;
+        while ((!this.client || !this.isConnected) && waitRetries < 20) {
+          await new Promise(r => setTimeout(r, 400));
+          waitRetries++;
+        }
+        if (!this.client || !this.isConnected) break;
+
         const slice = buffer.slice(i * chunkSize, Math.min((i + 1) * chunkSize, buffer.byteLength));
         const chunkB64 = this.uint8ToBase64(new Uint8Array(slice));
 
@@ -848,19 +888,32 @@ class SyncEngine {
           sizeFormatted: item.sizeFormatted,
           timestamp: item.timestamp,
           note: item.note || '',
+          thumbData: item.thumbData || null,
           chunkIndex: i,
           totalChunks: totalChunks,
-          chunkData: chunkB64
+          chunkData: chunkB64,
+          senderId: this.deviceId
         };
 
-        setTimeout(() => {
-          if (this.client && this.isConnected) {
-            this.client.publish(`${this.topicPrefix}/attachments/chunk/${targetPeerId}/${item.id}`, JSON.stringify(packet), { qos: 1 });
-          }
-        }, i * 35);
+        this.client.publish(`${this.topicPrefix}/attachments/chunk/${targetPeerId}/${item.id}`, JSON.stringify(packet), { qos: 0 });
+
+        const percent = Math.round(((i + 1) / totalChunks) * 100);
+        if (this.onTransferProgress && (i % 4 === 0 || i === totalChunks - 1)) {
+          this.onTransferProgress({
+            attachmentId: item.id,
+            name: item.name,
+            percent: percent,
+            type: 'upload'
+          });
+        }
+
+        // Pacing delay (25ms) to prevent flooding WebSocket and broker buffers
+        await new Promise(r => setTimeout(r, 25));
       }
     } catch (err) {
       console.warn('[SyncEngine] Stream error:', err);
+    } finally {
+      this.activeUploads.delete(transferKey);
     }
   }
 
@@ -873,11 +926,15 @@ class SyncEngine {
         chunks: new Array(packet.totalChunks),
         totalChunks: packet.totalChunks,
         received: 0,
-        meta: packet
+        meta: packet,
+        senderId: packet.senderId,
+        retryCount: 0
       });
     }
 
     const state = this.incomingTransfers.get(attId);
+    if (packet.senderId) state.senderId = packet.senderId;
+
     if (!state.chunks[packet.chunkIndex]) {
       state.chunks[packet.chunkIndex] = this.base64ToUint8(packet.chunkData);
       state.received++;
@@ -893,16 +950,27 @@ class SyncEngine {
       }
     }
 
-    if (state.received === state.totalChunks) {
+    // Schedule missing chunk check if stream stalls
+    clearTimeout(state.checkTimer);
+    if (state.received < state.totalChunks) {
+      state.checkTimer = setTimeout(() => {
+        this.checkAndRequestMissingChunks(attId);
+      }, 2000);
+    } else {
+      clearTimeout(state.checkTimer);
       // Reassemble complete pristine ArrayBuffer
       let totalLength = 0;
-      for (const c of state.chunks) totalLength += c.byteLength;
+      for (const c of state.chunks) {
+        if (c) totalLength += c.byteLength;
+      }
 
       const merged = new Uint8Array(totalLength);
       let offset = 0;
       for (const c of state.chunks) {
-        merged.set(c, offset);
-        offset += c.byteLength;
+        if (c) {
+          merged.set(c, offset);
+          offset += c.byteLength;
+        }
       }
 
       this.incomingTransfers.delete(attId);
@@ -917,6 +985,7 @@ class SyncEngine {
         sizeFormatted: packet.sizeFormatted,
         timestamp: packet.timestamp,
         note: packet.note || '',
+        thumbData: packet.thumbData || null,
         blob: blob,
         isDownloading: false
       };
@@ -931,6 +1000,93 @@ class SyncEngine {
     }
   }
 
+  checkAndRequestMissingChunks(attId) {
+    const state = this.incomingTransfers.get(attId);
+    if (!state || state.received >= state.totalChunks) return;
+
+    if (state.retryCount >= 4) {
+      console.warn(`[SyncEngine] Transfer ${attId} timed out after 4 retries.`);
+      this.incomingTransfers.delete(attId);
+      return;
+    }
+    state.retryCount++;
+
+    const missingIndices = [];
+    for (let i = 0; i < state.totalChunks; i++) {
+      if (!state.chunks[i]) missingIndices.push(i);
+      if (missingIndices.length >= 50) break;
+    }
+
+    if (missingIndices.length > 0 && this.client && this.isConnected) {
+      const payload = {
+        attachmentId: attId,
+        requesterId: this.deviceId,
+        missingIndices: missingIndices,
+        timestamp: Date.now()
+      };
+      const target = state.senderId || 'any';
+      try {
+        this.client.publish(`${this.topicPrefix}/attachments/missing/${target}`, JSON.stringify(payload), { qos: 0 });
+      } catch (e) {}
+    }
+  }
+
+  async handleMissingChunksRequest(req) {
+    if (!req || !req.attachmentId || !req.requesterId || !Array.isArray(req.missingIndices)) return;
+    if (req.requesterId === this.deviceId) return;
+    if (!window.AttachmentDB) return;
+
+    const item = await window.AttachmentDB.get(req.attachmentId);
+    if (!item || !item.blob) return;
+
+    try {
+      const buffer = await item.blob.arrayBuffer();
+      const chunkSize = 49152;
+      const totalChunks = Math.ceil(buffer.byteLength / chunkSize);
+
+      for (const i of req.missingIndices) {
+        if (i < 0 || i >= totalChunks) continue;
+        if (!this.client || !this.isConnected) break;
+
+        const slice = buffer.slice(i * chunkSize, Math.min((i + 1) * chunkSize, buffer.byteLength));
+        const chunkB64 = this.uint8ToBase64(new Uint8Array(slice));
+
+        const packet = {
+          attachmentId: item.id,
+          name: item.name,
+          type: item.type,
+          category: item.category,
+          size: item.size,
+          sizeFormatted: item.sizeFormatted,
+          timestamp: item.timestamp,
+          note: item.note || '',
+          thumbData: item.thumbData || null,
+          chunkIndex: i,
+          totalChunks: totalChunks,
+          chunkData: chunkB64,
+          senderId: this.deviceId
+        };
+
+        this.client.publish(`${this.topicPrefix}/attachments/chunk/${req.requesterId}/${item.id}`, JSON.stringify(packet), { qos: 0 });
+        await new Promise(r => setTimeout(r, 20));
+      }
+    } catch (err) {
+      console.warn('[SyncEngine] Missing chunks stream error:', err);
+    }
+  }
+
+  async requestMissingAttachments() {
+    if (!this.client || !this.isConnected || !window.AttachmentDB) return;
+    try {
+      const all = await window.AttachmentDB.getAll();
+      for (const item of all) {
+        if (!item.blob) {
+          this.requestAttachmentStreaming(item.id, item.sourceDeviceId);
+        }
+      }
+    } catch (e) {}
+  }
+
   syncAttachmentManifestEntry(item) {
     const entry = {
       id: item.id,
@@ -939,6 +1095,7 @@ class SyncEngine {
       category: item.category,
       size: item.size,
       sizeFormatted: item.sizeFormatted,
+      thumbData: item.thumbData || null,
       timestamp: item.timestamp,
       note: item.note || '',
       sourceDeviceId: this.deviceId
@@ -952,11 +1109,13 @@ class SyncEngine {
 
   deleteAttachment(id) {
     this.attachmentsManifest = this.attachmentsManifest.filter(a => a.id !== id);
+    this.incomingTransfers.delete(id);
     this.publishAttachmentsManifest();
   }
 
   clearAllAttachments() {
     this.attachmentsManifest = [];
+    this.incomingTransfers.clear();
     this.publishAttachmentsManifest();
   }
 

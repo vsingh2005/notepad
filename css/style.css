@@ -2159,6 +2159,63 @@ body.view-attachments .attachments-view {
   border-color: #fed7aa;
 }
 
+.domain-badge.badge-syncing {
+  background: rgba(245, 158, 11, 0.15);
+  color: #b45309;
+  border-color: rgba(245, 158, 11, 0.3);
+}
+
+.visually-hidden-file-input {
+  position: fixed !important;
+  top: -9999px !important;
+  left: -9999px !important;
+  width: 1px !important;
+  height: 1px !important;
+  opacity: 0 !important;
+  pointer-events: none !important;
+  clip: rect(0, 0, 0, 0) !important;
+  z-index: -9999 !important;
+}
+
+.attachment-thumb-wrap.thumb-syncing {
+  border-style: dashed;
+  border-color: rgba(245, 158, 11, 0.5);
+}
+
+.attachment-thumb-sync-badge {
+  position: absolute;
+  bottom: 2px;
+  right: 2px;
+  background: rgba(0, 0, 0, 0.65);
+  color: #fff;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  animation: spinSync 2s linear infinite;
+}
+
+@keyframes spinSync {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.lightbox-sync-banner {
+  margin-top: 14px;
+  padding: 10px 16px;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 8px;
+  color: #b45309;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: center;
+  max-width: 90%;
+}
+
 /* Lightbox Modal */
 .media-lightbox-overlay {
   z-index: 1000;
