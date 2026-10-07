@@ -281,10 +281,26 @@ button {
   z-index: 10;
 }
 
+.right-sidebar {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  z-index: 9;
+}
+
+.app-layout > .app-sidebar { order: 1; }
+.app-layout > .right-sidebar { order: 2; }
+.app-layout > .sheet-wrapper { order: 3; }
+
 @media (min-width: 900px) {
   body {
     overflow: hidden; /* Handle scrolling inside panels on desktop */
   }
+
+  .app-layout > .app-sidebar { order: 1; }
+  .app-layout > .sheet-wrapper { order: 2; }
+  .app-layout > .right-sidebar { order: 3; }
 
   .app-layout {
     flex-direction: row;
@@ -298,7 +314,7 @@ button {
   }
 
   .app-sidebar {
-    width: 320px;
+    width: 250px;
     flex-shrink: 0;
     align-items: stretch;
     height: 100%;
@@ -313,10 +329,28 @@ button {
     scrollbar-color: var(--border-subtle) transparent;
   }
 
-  .app-sidebar::-webkit-scrollbar {
+  .right-sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    align-items: stretch;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--bg-app);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-lg);
+    padding: 24px;
+    box-shadow: var(--shadow-sm);
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-subtle) transparent;
+  }
+
+  .app-sidebar::-webkit-scrollbar,
+  .right-sidebar::-webkit-scrollbar {
     width: 6px;
   }
-  .app-sidebar::-webkit-scrollbar-thumb {
+  .app-sidebar::-webkit-scrollbar-thumb,
+  .right-sidebar::-webkit-scrollbar-thumb {
     background-color: var(--border-subtle);
     border-radius: 4px;
   }
