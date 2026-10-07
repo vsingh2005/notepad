@@ -187,36 +187,6 @@
     </div>
   </section>
 
-  <!-- Quick Paste Link Tray (Visible in Link Collector and Side-by-Side views) -->
-  <section class="quick-paste-container" id="quick-paste-container">
-    <div class="quick-paste-box">
-      <span class="paste-input-icon">
-        <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
-      </span>
-      <input 
-        type="text" 
-        id="quick-paste-input" 
-        class="quick-paste-input" 
-        placeholder="Paste a link here (or press Cmd/Ctrl+V anywhere)..." 
-        autocomplete="off"
-        spellcheck="false"
-      />
-      <div class="paste-box-actions">
-        <button class="btn" id="btn-paste-clipboard" title="Paste directly from your clipboard">
-          <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
-          <span class="btn-text-full">Paste Clipboard</span>
-        </button>
-        <button class="btn btn-primary" id="btn-add-link">
-          <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
-          <span>Add Link</span>
-        </button>
-      </div>
-    </div>
-    <div class="quick-paste-hint">
-      <span>Auto-syncs across all browsers & devices in real time with Yjs CRDT • Clean links without tracking parameters</span>
-      <span>Shortcut: <kbd class="kbd-shortcut">/</kbd> focus &bull; <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd> paste</span>
-    </div>
-  </section>
   </aside>
 
   <!-- The Blank Typable Paper Sheet Canvas -->
@@ -464,6 +434,37 @@
         </button>
       </div>
     </nav>
+
+    <!-- Quick Paste Link Tray (Visible in Link Collector and Side-by-Side views) -->
+    <section class="quick-paste-container" id="quick-paste-container">
+      <div class="quick-paste-box">
+        <span class="paste-input-icon">
+          <svg class="icon icon-lg" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+        </span>
+        <input 
+          type="text" 
+          id="quick-paste-input" 
+          class="quick-paste-input" 
+          placeholder="Paste a link here (or press Cmd/Ctrl+V anywhere)..." 
+          autocomplete="off"
+          spellcheck="false"
+        />
+        <div class="paste-box-actions">
+          <button class="btn" id="btn-paste-clipboard" title="Paste directly from your clipboard">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"></path><rect x="8" y="2" width="8" height="4" rx="1" ry="1"></rect></svg>
+            <span class="btn-text-full">Paste Clipboard</span>
+          </button>
+          <button class="btn btn-primary" id="btn-add-link">
+            <svg class="icon" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+            <span>Add Link</span>
+          </button>
+        </div>
+      </div>
+      <div class="quick-paste-hint">
+        <span>Auto-syncs across all browsers & devices in real time with Yjs CRDT • Clean links without tracking parameters</span>
+        <span>Shortcut: <kbd class="kbd-shortcut">/</kbd> focus &bull; <kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd> paste</span>
+      </div>
+    </section>
   </aside>
   </div>
 
