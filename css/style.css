@@ -3731,6 +3731,32 @@ body.view-attachments .attachments-view {
     display: block !important;
     width: 100% !important;
   }
+
+  /* Desktop Flyout Popovers (Unclipped by Sidebar) */
+  .theme-popover {
+    position: fixed !important;
+    left: 285px;
+    right: auto !important;
+    z-index: 1000 !important;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle) !important;
+  }
+
+  .connection-popover {
+    position: fixed !important;
+    left: 285px;
+    right: auto !important;
+    transform: translateY(6px) scale(0.97) !important;
+    z-index: 1000 !important;
+    max-height: calc(100vh - 40px);
+    overflow-y: auto;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px var(--border-subtle) !important;
+  }
+
+  .connection-popover.active {
+    transform: translateY(0) scale(1) !important;
+  }
 }
 
 

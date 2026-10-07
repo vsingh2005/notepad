@@ -1540,6 +1540,25 @@
         e.stopPropagation();
         if (connectionPopover) connectionPopover.classList.remove('active');
         const willBeActive = !themePopover.classList.contains('active');
+
+        if (willBeActive && window.innerWidth >= 900) {
+          const rect = btnToggleCustomizers.getBoundingClientRect();
+          themePopover.style.position = 'fixed';
+          themePopover.style.left = `${Math.round(rect.right + 12)}px`;
+          themePopover.style.right = 'auto';
+          const popHeight = themePopover.offsetHeight || 330;
+          let top = Math.round(rect.top - 8);
+          if (top + popHeight > window.innerHeight - 20) {
+            top = Math.max(20, window.innerHeight - popHeight - 20);
+          }
+          themePopover.style.top = `${top}px`;
+        } else if (window.innerWidth < 900) {
+          themePopover.style.position = '';
+          themePopover.style.left = '';
+          themePopover.style.right = '';
+          themePopover.style.top = '';
+        }
+
         themePopover.classList.toggle('active', willBeActive);
         btnToggleCustomizers.classList.toggle('active', willBeActive);
 
@@ -1854,7 +1873,27 @@
         e.stopPropagation();
         const themePop = document.getElementById('theme-popover');
         if (themePop) themePop.classList.remove('active');
-        connectionPopover.classList.toggle('active');
+        const willBeActive = !connectionPopover.classList.contains('active');
+
+        if (willBeActive && window.innerWidth >= 900) {
+          const rect = syncStatusContainer.getBoundingClientRect();
+          connectionPopover.style.position = 'fixed';
+          connectionPopover.style.left = `${Math.round(rect.right + 12)}px`;
+          connectionPopover.style.right = 'auto';
+          const popHeight = connectionPopover.offsetHeight || 300;
+          let top = Math.round(rect.top - 8);
+          if (top + popHeight > window.innerHeight - 20) {
+            top = Math.max(20, window.innerHeight - popHeight - 20);
+          }
+          connectionPopover.style.top = `${top}px`;
+        } else if (window.innerWidth < 900) {
+          connectionPopover.style.position = '';
+          connectionPopover.style.left = '';
+          connectionPopover.style.right = '';
+          connectionPopover.style.top = '';
+        }
+
+        connectionPopover.classList.toggle('active', willBeActive);
       });
     }
 
