@@ -306,7 +306,8 @@
   }
 
   const THEME_NAMES = {
-    ares: 'Ares Ember',
+    ares: 'Isometra Ember',
+    isometra: 'Isometra Ember',
     sepia: 'Warm Sepia',
     light: 'Paper Light',
     dark: 'Dark Slate',
@@ -315,6 +316,7 @@
 
   function applyTheme(themeKey, notify = false) {
     if (!themeKey) return;
+    if (themeKey === 'isometra') themeKey = 'ares';
     document.documentElement.setAttribute('data-theme', themeKey);
     localStorage.setItem('syncpad_theme', themeKey);
     if (selectTheme) selectTheme.value = themeKey;
@@ -351,7 +353,7 @@
   }
 
   function loadPreferences() {
-    const theme = localStorage.getItem('syncpad_theme') || 'sepia';
+    const theme = localStorage.getItem('syncpad_theme') || 'ares';
     const font = localStorage.getItem('syncpad_font') || 'sans';
     const ruling = localStorage.getItem('syncpad_ruling') || 'dots';
     isGroupingByDay = localStorage.getItem('ringo_group_by_day') === 'true';

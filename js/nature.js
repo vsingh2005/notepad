@@ -27,7 +27,7 @@ class NatureAmbience {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
 
-    this.theme = document.documentElement.getAttribute('data-theme') || 'sepia';
+    this.theme = document.documentElement.getAttribute('data-theme') || 'ares';
 
     this.init();
   }
@@ -38,7 +38,7 @@ class NatureAmbience {
 
     // Observe theme changes to adapt leaf & particle colors
     const observer = new MutationObserver(() => {
-      this.theme = document.documentElement.getAttribute('data-theme') || 'sepia';
+      this.theme = document.documentElement.getAttribute('data-theme') || 'ares';
       this.resetPalette();
       if (!this.isActive) {
         this.drawStaticBackground();
@@ -69,6 +69,7 @@ class NatureAmbience {
 
   getThemeConfig() {
     switch (this.theme) {
+      case 'isometra':
       case 'ares':
         return {
           bgGradient: ['#0a0705', '#170c07', '#0f0805'],
