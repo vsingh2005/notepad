@@ -305,19 +305,59 @@
     }
   }
 
+  const THEME_NAMES = {
+    sepia: 'Warm Sepia',
+    light: 'Paper Light',
+    dark: 'Dark Slate',
+    terminal: 'Cyber Neon'
+  };
+
+  function applyTheme(themeKey, notify = false) {
+    if (!themeKey) return;
+    document.documentElement.setAttribute('data-theme', themeKey);
+    localStorage.setItem('syncpad_theme', themeKey);
+    if (selectTheme) selectTheme.value = themeKey;
+
+    document.querySelectorAll('.theme-swatch-card').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.themeVal === themeKey);
+    });
+
+    if (window.natureAmbience && typeof window.natureAmbience.drawStaticBackground === 'function') {
+      window.natureAmbience.drawStaticBackground();
+    }
+
+    if (notify) {
+      showToast(`Theme: ${THEME_NAMES[themeKey] || themeKey}`);
+    }
+  }
+
+  function applyFont(fontKey) {
+    if (!fontKey) return;
+    document.body.style.setProperty('--font-current', getFontFamily(fontKey));
+    localStorage.setItem('syncpad_font', fontKey);
+    if (selectFont) selectFont.value = fontKey;
+    const pop = document.getElementById('select-font-popover');
+    if (pop) pop.value = fontKey;
+  }
+
+  function applyRuling(rulingKey) {
+    if (!rulingKey) return;
+    document.body.setAttribute('data-ruling', rulingKey);
+    localStorage.setItem('syncpad_ruling', rulingKey);
+    if (selectRuling) selectRuling.value = rulingKey;
+    const pop = document.getElementById('select-ruling-popover');
+    if (pop) pop.value = rulingKey;
+  }
+
   function loadPreferences() {
     const theme = localStorage.getItem('syncpad_theme') || 'sepia';
     const font = localStorage.getItem('syncpad_font') || 'sans';
     const ruling = localStorage.getItem('syncpad_ruling') || 'dots';
     isGroupingByDay = localStorage.getItem('ringo_group_by_day') === 'true';
 
-    document.documentElement.setAttribute('data-theme', theme);
-    document.body.style.setProperty('--font-current', getFontFamily(font));
-    document.body.setAttribute('data-ruling', ruling);
-
-    if (selectTheme) selectTheme.value = theme;
-    if (selectFont) selectFont.value = font;
-    if (selectRuling) selectRuling.value = ruling;
+    applyTheme(theme, false);
+    applyFont(font);
+    applyRuling(ruling);
 
     if (btnToggleGrouping) {
       btnToggleGrouping.textContent = isGroupingByDay ? 'Group: Day' : 'Group: Off';
@@ -1486,14 +1526,54 @@
     if (tabSplit) tabSplit.addEventListener('click', () => switchView('split'));
     if (tabAttachments) tabAttachments.addEventListener('click', () => switchView('attachments'));
 
-    // Mobile customizers drawer
+    // Theme & Styling popover trigger
     const btnToggleCustomizers = document.getElementById('btn-toggle-customizers');
+    const themePopover = document.getElementById('theme-popover');
+    const btnCloseThemePopover = document.getElementById('btn-close-theme-popover');
     const canvasCustomizers = document.getElementById('canvas-customizers');
-    if (btnToggleCustomizers && canvasCustomizers) {
-      btnToggleCustomizers.addEventListener('click', () => {
-        canvasCustomizers.classList.toggle('active');
-        btnToggleCustomizers.classList.toggle('active');
+
+    if (btnToggleCustomizers && themePopover) {
+      btnToggleCustomizers.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (connectionPopover) connectionPopover.classList.remove('active');
+        const willBeActive = !themePopover.classList.contains('active');
+        themePopover.classList.toggle('active', willBeActive);
+        btnToggleCustomizers.classList.toggle('active', willBeActive);
+
+        if (canvasCustomizers) {
+          canvasCustomizers.classList.toggle('active', willBeActive);
+        }
       });
+    }
+
+    if (btnCloseThemePopover && themePopover) {
+      btnCloseThemePopover.addEventListener('click', () => {
+        themePopover.classList.remove('active');
+        if (btnToggleCustomizers) btnToggleCustomizers.classList.remove('active');
+      });
+    }
+
+    // Theme swatches inside popover
+    document.querySelectorAll('.theme-swatch-card').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const val = btn.dataset.themeVal;
+        if (val) {
+          applyTheme(val, true);
+          if (themePopover) themePopover.classList.remove('active');
+          if (btnToggleCustomizers) btnToggleCustomizers.classList.remove('active');
+        }
+      });
+    });
+
+    const selectFontPopover = document.getElementById('select-font-popover');
+    if (selectFontPopover) {
+      selectFontPopover.addEventListener('change', (e) => applyFont(e.target.value));
+    }
+
+    const selectRulingPopover = document.getElementById('select-ruling-popover');
+    if (selectRulingPopover) {
+      selectRulingPopover.addEventListener('change', (e) => applyRuling(e.target.value));
     }
 
     // 4. Collaborative Textarea listeners
@@ -1742,23 +1822,17 @@
     }
 
     // 12. Appearance settings
-    selectTheme.addEventListener('change', (e) => {
-      const val = e.target.value;
-      document.documentElement.setAttribute('data-theme', val);
-      localStorage.setItem('syncpad_theme', val);
-    });
+    if (selectTheme) {
+      selectTheme.addEventListener('change', (e) => applyTheme(e.target.value, true));
+    }
 
-    selectFont.addEventListener('change', (e) => {
-      const val = e.target.value;
-      document.body.style.setProperty('--font-current', getFontFamily(val));
-      localStorage.setItem('syncpad_font', val);
-    });
+    if (selectFont) {
+      selectFont.addEventListener('change', (e) => applyFont(e.target.value));
+    }
 
-    selectRuling.addEventListener('change', (e) => {
-      const val = e.target.value;
-      document.body.setAttribute('data-ruling', val);
-      localStorage.setItem('syncpad_ruling', val);
-    });
+    if (selectRuling) {
+      selectRuling.addEventListener('change', (e) => applyRuling(e.target.value));
+    }
 
     // Ambience Toggle
     if (btnToggleAmbience) {
@@ -1775,6 +1849,8 @@
     if (syncStatusContainer) {
       syncStatusContainer.addEventListener('click', (e) => {
         e.stopPropagation();
+        const themePop = document.getElementById('theme-popover');
+        if (themePop) themePop.classList.remove('active');
         connectionPopover.classList.toggle('active');
       });
     }
@@ -1788,6 +1864,12 @@
     document.addEventListener('click', (e) => {
       if (connectionPopover && !connectionPopover.contains(e.target) && e.target !== syncStatusContainer) {
         connectionPopover.classList.remove('active');
+      }
+      const themePop = document.getElementById('theme-popover');
+      const btnTheme = document.getElementById('btn-toggle-customizers');
+      if (themePop && !themePop.contains(e.target) && btnTheme && !btnTheme.contains(e.target)) {
+        themePop.classList.remove('active');
+        if (btnTheme) btnTheme.classList.remove('active');
       }
     });
 

@@ -2290,6 +2290,119 @@ body.view-attachments .attachments-view {
 }
 
 /* ==========================================================================
+   Theme & Appearance Popover
+   ========================================================================== */
+.theme-menu-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.theme-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  transform: translateY(6px) scale(0.97);
+  width: 270px;
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-float);
+  padding: 14px;
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s cubic-bezier(0.16, 1, 0.3, 1), transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.theme-popover.active {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0) scale(1);
+}
+
+.theme-swatches-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 7px;
+  margin-bottom: 6px;
+}
+
+.theme-swatch-card {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 8px 10px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-paper-alt);
+  color: var(--text-main);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: var(--transition-smooth);
+}
+
+.theme-swatch-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+}
+
+.theme-swatch-card.active {
+  border-color: var(--primary);
+  background: var(--primary-light);
+  color: var(--primary);
+  box-shadow: 0 0 0 2px rgba(45, 138, 94, 0.25);
+}
+
+.theme-dot {
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  flex-shrink: 0;
+}
+
+.swatch-sepia {
+  background: #fbf7ee;
+  border-color: #8c6a46;
+}
+
+.swatch-light {
+  background: #f8fafc;
+  border-color: #0ea5e9;
+}
+
+.swatch-dark {
+  background: #0d1b14;
+  border-color: #10b981;
+}
+
+.swatch-terminal {
+  background: #030a06;
+  border-color: #00ff66;
+}
+
+.custom-select-sm {
+  padding: 4px 8px;
+  font-size: 11.5px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-paper-alt);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+}
+
+@media (max-width: 480px) {
+  .theme-popover {
+    position: fixed;
+    top: 60px;
+    right: 12px;
+    left: auto;
+    width: calc(100vw - 24px);
+    max-width: 300px;
+  }
+}
+
+/* ==========================================================================
    Links Search, Filtering & Rich Previews
    ========================================================================== */
 .link-header-top-row {

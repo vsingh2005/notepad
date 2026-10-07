@@ -89,10 +89,58 @@
         <svg class="icon" viewBox="0 0 24 24"><path d="M12 22C6.5 22 2 17.5 2 12c0-5 4-9.5 9-10 .5 0 1 .5 1 1 0 6 4 10 10 10 .5 0 1 .5 1 1 0 5.5-4.5 10-10 10z"></path></svg>
         <span>Ambience</span>
       </button>
-      <button class="btn" id="btn-toggle-customizers" title="Paper Styling & Theme">
-        <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
-        <span>Theme</span>
-      </button>
+      <div class="theme-menu-wrapper">
+        <button class="btn" id="btn-toggle-customizers" title="Paper Styling & Theme">
+          <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          <span>Theme</span>
+        </button>
+
+        <!-- Theme & Appearance Popover Card -->
+        <div class="theme-popover" id="theme-popover">
+          <div class="popover-header">
+            <span class="popover-title">Themes & Styling</span>
+            <button class="popover-close-btn" id="btn-close-theme-popover" aria-label="Close popover">×</button>
+          </div>
+          <div class="popover-body">
+            <div class="theme-swatches-grid">
+              <button type="button" class="theme-swatch-card" data-theme-val="sepia">
+                <span class="theme-dot swatch-sepia"></span>
+                <span class="theme-name">Warm Sepia</span>
+              </button>
+              <button type="button" class="theme-swatch-card" data-theme-val="light">
+                <span class="theme-dot swatch-light"></span>
+                <span class="theme-name">Paper Light</span>
+              </button>
+              <button type="button" class="theme-swatch-card" data-theme-val="dark">
+                <span class="theme-dot swatch-dark"></span>
+                <span class="theme-name">Dark Slate</span>
+              </button>
+              <button type="button" class="theme-swatch-card" data-theme-val="terminal">
+                <span class="theme-dot swatch-terminal"></span>
+                <span class="theme-name">Cyber Neon</span>
+              </button>
+            </div>
+            <div class="popover-divider"></div>
+            <div class="popover-row">
+              <span class="popover-label">Typography:</span>
+              <select id="select-font-popover" class="custom-select custom-select-sm">
+                <option value="sans">Clean Sans</option>
+                <option value="mono">Monospace</option>
+                <option value="serif">Editorial Serif</option>
+              </select>
+            </div>
+            <div class="popover-row" style="margin-top: 6px;">
+              <span class="popover-label">Paper Ruling:</span>
+              <select id="select-ruling-popover" class="custom-select custom-select-sm">
+                <option value="blank">Blank Sheet</option>
+                <option value="lined">Lined Paper</option>
+                <option value="grid">Grid Pattern</option>
+                <option value="dots">Dot Matrix</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
       <button class="btn btn-primary" id="btn-share-room" title="Share link to view & edit on another device">
         <svg class="icon" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
         <span>Share / QR</span>
