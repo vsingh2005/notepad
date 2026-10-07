@@ -281,7 +281,7 @@ button {
   z-index: 10;
 }
 
-@media (min-width: 1024px) {
+@media (min-width: 900px) {
   body {
     overflow: hidden; /* Handle scrolling inside panels on desktop */
   }
@@ -400,6 +400,13 @@ button {
 /* ==========================================================================
    Top Header Bar
    ========================================================================== */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .app-header {
   width: 100%;
   max-width: 940px;
