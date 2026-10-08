@@ -899,9 +899,7 @@ body.view-split .paper-footer-bar {
 }
 
 .paper-sheet {
-  background-color: rgba(255, 255, 255, 0.94);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  background-color: var(--bg-paper);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-paper);
   border: 1px solid var(--border-subtle);
@@ -914,7 +912,7 @@ body.view-split .paper-footer-bar {
 }
 
 [data-theme="ares"] .paper-sheet {
-  background-color: rgba(28, 11, 8, 0.95);
+  background-color: #1c0b08;
   border-color: rgba(255, 71, 26, 0.28);
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.9), 0 0 35px rgba(255, 71, 26, 0.12);
 }
@@ -939,15 +937,52 @@ body.view-split .paper-footer-bar {
 }
 
 [data-theme="dark"] .paper-sheet {
-  background-color: rgba(17, 24, 39, 0.93);
+  background-color: #0e1e15;
 }
 
 [data-theme="sepia"] .paper-sheet {
-  background-color: rgba(250, 246, 238, 0.95);
+  background-color: #faf6ee;
 }
 
 [data-theme="terminal"] .paper-sheet {
-  background-color: rgba(7, 23, 16, 0.93);
+  background-color: #071710;
+}
+
+/* Ensure all non-translucent ruling styles have strictly 0% transparency */
+body:not([data-ruling="translucent"]) .paper-sheet,
+html:not([data-ruling="translucent"]) .paper-sheet {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+body:not([data-ruling="translucent"]) [data-theme="ares"] .paper-sheet,
+html:not([data-ruling="translucent"]) [data-theme="ares"] .paper-sheet,
+[data-theme="ares"]:not([data-ruling="translucent"]) .paper-sheet {
+  background-color: #1c0b08 !important;
+}
+
+body:not([data-ruling="translucent"]) [data-theme="dark"] .paper-sheet,
+html:not([data-ruling="translucent"]) [data-theme="dark"] .paper-sheet,
+[data-theme="dark"]:not([data-ruling="translucent"]) .paper-sheet {
+  background-color: #0e1e15 !important;
+}
+
+body:not([data-ruling="translucent"]) [data-theme="sepia"] .paper-sheet,
+html:not([data-ruling="translucent"]) [data-theme="sepia"] .paper-sheet,
+[data-theme="sepia"]:not([data-ruling="translucent"]) .paper-sheet {
+  background-color: #faf6ee !important;
+}
+
+body:not([data-ruling="translucent"]) [data-theme="terminal"] .paper-sheet,
+html:not([data-ruling="translucent"]) [data-theme="terminal"] .paper-sheet,
+[data-theme="terminal"]:not([data-ruling="translucent"]) .paper-sheet {
+  background-color: #071710 !important;
+}
+
+body:not([data-ruling="translucent"]) [data-theme="light"] .paper-sheet,
+html:not([data-ruling="translucent"]) [data-theme="light"] .paper-sheet,
+[data-theme="light"]:not([data-ruling="translucent"]) .paper-sheet {
+  background-color: #ffffff !important;
 }
 
 /* ==========================================================================
