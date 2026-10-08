@@ -956,9 +956,9 @@ body.view-split .paper-footer-bar {
 [data-ruling="translucent"] .paper-sheet,
 body[data-ruling="translucent"] .paper-sheet,
 html[data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(255, 255, 255, 0.38) !important;
-  backdrop-filter: blur(2px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(2px) saturate(135%) !important;
+  background-color: rgba(255, 255, 255, 0.72) !important;
+  backdrop-filter: blur(8px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(135%) !important;
   border-color: rgba(255, 255, 255, 0.45) !important;
   box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.6) !important;
 }
@@ -967,9 +967,9 @@ html[data-ruling="translucent"] .paper-sheet {
 [data-theme="ares"][data-ruling="translucent"] .paper-sheet,
 html[data-theme="ares"] body[data-ruling="translucent"] .paper-sheet,
 html[data-theme="ares"][data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(22, 9, 7, 0.38) !important;
-  backdrop-filter: blur(2px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(2px) saturate(140%) !important;
+  background-color: rgba(22, 9, 7, 0.70) !important;
+  backdrop-filter: blur(8px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
   border-color: rgba(255, 71, 26, 0.4) !important;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 71, 26, 0.18), inset 0 1px 1px rgba(255, 120, 60, 0.3) !important;
 }
@@ -978,9 +978,9 @@ html[data-theme="ares"][data-ruling="translucent"] .paper-sheet {
 [data-theme="dark"][data-ruling="translucent"] .paper-sheet,
 html[data-theme="dark"] body[data-ruling="translucent"] .paper-sheet,
 html[data-theme="dark"][data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(10, 22, 16, 0.38) !important;
-  backdrop-filter: blur(2px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(2px) saturate(140%) !important;
+  background-color: rgba(10, 22, 16, 0.70) !important;
+  backdrop-filter: blur(8px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
   border-color: rgba(74, 222, 128, 0.32) !important;
   box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(74, 222, 128, 0.25) !important;
 }
@@ -989,9 +989,9 @@ html[data-theme="dark"][data-ruling="translucent"] .paper-sheet {
 [data-theme="terminal"][data-ruling="translucent"] .paper-sheet,
 html[data-theme="terminal"] body[data-ruling="translucent"] .paper-sheet,
 html[data-theme="terminal"][data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(4, 16, 9, 0.4) !important;
-  backdrop-filter: blur(2px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(2px) saturate(140%) !important;
+  background-color: rgba(4, 16, 9, 0.72) !important;
+  backdrop-filter: blur(8px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
   border-color: rgba(34, 197, 94, 0.4) !important;
 }
 
@@ -999,9 +999,9 @@ html[data-theme="terminal"][data-ruling="translucent"] .paper-sheet {
 [data-theme="sepia"][data-ruling="translucent"] .paper-sheet,
 html[data-theme="sepia"] body[data-ruling="translucent"] .paper-sheet,
 html[data-theme="sepia"][data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(245, 237, 222, 0.45) !important;
-  backdrop-filter: blur(2px) saturate(135%) !important;
-  -webkit-backdrop-filter: blur(2px) saturate(135%) !important;
+  background-color: rgba(245, 237, 222, 0.76) !important;
+  backdrop-filter: blur(8px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(135%) !important;
   border-color: rgba(138, 86, 32, 0.32) !important;
 }
 
@@ -1050,37 +1050,59 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
 
 /* Translucent frosted link cards & toolbars */
 [data-ruling="translucent"] .link-card {
-  background-color: rgba(255, 255, 255, 0.42) !important;
-  backdrop-filter: blur(3px) !important;
-  -webkit-backdrop-filter: blur(3px) !important;
+  background-color: rgba(255, 255, 255, 0.65) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
 }
 
 [data-theme="ares"] [data-ruling="translucent"] .link-card,
 [data-theme="ares"][data-ruling="translucent"] .link-card {
-  background-color: rgba(38, 15, 11, 0.45) !important;
+  background-color: rgba(38, 15, 11, 0.68) !important;
   border-color: rgba(255, 71, 26, 0.35) !important;
 }
 
 [data-theme="dark"] [data-ruling="translucent"] .link-card,
 [data-theme="dark"][data-ruling="translucent"] .link-card {
-  background-color: rgba(18, 36, 26, 0.45) !important;
+  background-color: rgba(18, 36, 26, 0.68) !important;
 }
 
 [data-ruling="translucent"] .notepad-toolbar,
 [data-ruling="translucent"] .paper-footer-bar {
-  background-color: rgba(255, 255, 255, 0.25) !important;
-  backdrop-filter: blur(3px) !important;
-  -webkit-backdrop-filter: blur(3px) !important;
+  background-color: rgba(255, 255, 255, 0.55) !important;
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
 }
 
 [data-theme="ares"] [data-ruling="translucent"] .notepad-toolbar,
-[data-theme="ares"] [data-ruling="translucent"] .paper-footer-bar {
-  background-color: rgba(38, 15, 11, 0.35) !important;
+[data-theme="ares"][data-ruling="translucent"] .notepad-toolbar,
+[data-theme="ares"] [data-ruling="translucent"] .paper-footer-bar,
+[data-theme="ares"][data-ruling="translucent"] .paper-footer-bar {
+  background-color: rgba(38, 15, 11, 0.58) !important;
 }
 
 [data-theme="dark"] [data-ruling="translucent"] .notepad-toolbar,
-[data-theme="dark"] [data-ruling="translucent"] .paper-footer-bar {
-  background-color: rgba(18, 36, 26, 0.35) !important;
+[data-theme="dark"][data-ruling="translucent"] .notepad-toolbar,
+[data-theme="dark"] [data-ruling="translucent"] .paper-footer-bar,
+[data-theme="dark"][data-ruling="translucent"] .paper-footer-bar {
+  background-color: rgba(18, 36, 26, 0.58) !important;
+}
+
+[data-ruling="translucent"] .empty-title {
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.8) !important;
+}
+
+[data-ruling="translucent"] .empty-subtitle {
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9) !important;
+}
+
+[data-theme="light"] [data-ruling="translucent"] .empty-title,
+[data-theme="light"][data-ruling="translucent"] .empty-title {
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95), 0 0 8px rgba(255, 255, 255, 0.8) !important;
+}
+
+[data-theme="light"] [data-ruling="translucent"] .empty-subtitle,
+[data-theme="light"][data-ruling="translucent"] .empty-subtitle {
+  text-shadow: 0 1px 2px rgba(255, 255, 255, 0.95) !important;
 }
 
 /* Link Cards View */
@@ -1398,16 +1420,23 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
 }
 
 /* Empty State */
+.link-cards-container:empty,
+#attachments-cards-grid:empty,
+#link-cards-container:empty {
+  display: none !important;
+}
+
 .empty-links-placeholder {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 70px 20px;
+  padding: 30px 20px;
   color: var(--text-subtle);
   gap: 14px;
   flex: 1;
+  margin: auto 0;
 }
 
 #empty-attachments-placeholder {
@@ -1416,6 +1445,14 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
 
 #empty-attachments-placeholder.active {
   display: flex !important;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  flex: 1 1 auto !important;
+  margin: auto 0 !important;
+  padding: 30px 20px !important;
+  width: 100%;
 }
 
 .empty-icon-wrap {
@@ -1437,8 +1474,13 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
 
 .empty-subtitle {
   font-size: 13px;
-  max-width: 420px;
+  max-width: 520px;
   line-height: 1.6;
+}
+
+#empty-attachments-placeholder .empty-subtitle {
+  max-width: 580px;
+  line-height: 1.65;
 }
 
 /* Raw Notepad View */
@@ -2135,6 +2177,11 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
 body.view-attachments .attachments-view {
   display: flex !important;
   flex-direction: column;
+  flex: 1 1 0%;
+  min-height: 0;
+  height: 100%;
+  overflow-y: auto;
+  padding: 18px 24px;
 }
 
 /* Category Filter Pills styled like the Notebook Tabs */
@@ -3627,7 +3674,8 @@ body.view-attachments .attachments-view {
   }
 
   .link-list-view,
-  .raw-notepad-view {
+  .raw-notepad-view,
+  .attachments-view {
     flex: 1 !important;
     min-height: 0 !important;
     overflow-y: auto !important;
