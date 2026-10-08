@@ -32,6 +32,7 @@ Ringo's Notepad syncs automatically in real time across any browser and device: 
   - **Media Previews & Lightbox**: Fullscreen lightbox player for pictures and videos, audio playback controls, original file download, and customizable captions/notes.
 - **Blank Typable Sheet**:
   - Switch anytime to **Blank Notepad** for freeform, collaborative text editing with debounced cloud persistence and cursor preservation.
+  - **Passkey-Protected & Encrypted Pages**: Create private pages locked with an optional secret key (or generated PIN/passkey). Other users and devices must enter the key to view or edit notes.
   - **Custom Paper Rulings**: Blank Sheet, Lined Paper, Grid Pattern, Dot Matrix, and **Translucent Glass** (silky frosted glass letting living nature ambience shine through without sacrificing contrast or readability).
   - **Rich Typography Choices**: Clean Sans, Developer Mono, Editorial Serif, Cozy Script (handwritten), Modern Outfit, Typewriter Slab, and Comfort Dyslexic.
   - **Curated Themes**: Isometra Ember, Paper Light, Dark Slate, Warm Sepia, Cyber Neon.

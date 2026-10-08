@@ -91,10 +91,17 @@ class SyncEngine {
   }
 
   initDeviceIdentity() {
-    let savedId = localStorage.getItem('ringo_device_id');
+    let baseId = localStorage.getItem('ringo_device_id');
+    if (!baseId) {
+      baseId = 'dev_' + Math.random().toString(36).substring(2, 10);
+      try { localStorage.setItem('ringo_device_id', baseId); } catch (e) {}
+    }
+
+    // Tab-level isolation allows testing multiple peers in separate tabs on the same machine
+    let savedId = sessionStorage.getItem('ringo_tab_device_id');
     if (!savedId) {
-      savedId = 'dev_' + Math.random().toString(36).substring(2, 10);
-      try { localStorage.setItem('ringo_device_id', savedId); } catch (e) {}
+      savedId = baseId + '_' + Math.random().toString(36).substring(2, 6);
+      try { sessionStorage.setItem('ringo_tab_device_id', savedId); } catch (e) {}
     }
 
     const ua = navigator.userAgent || '';
@@ -107,20 +114,26 @@ class SyncEngine {
     else if (ua.includes('CrOS')) os = 'Chromebook';
     else if (ua.includes('Linux')) os = 'Linux';
 
-    let savedName = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.username) || localStorage.getItem('ringo_device_name');
+    let savedName = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.username) || sessionStorage.getItem('ringo_tab_device_name') || localStorage.getItem('ringo_device_name');
     if (!savedName) {
       savedName = `${os} (${Math.floor(100 + Math.random() * 900)})`;
-      try { localStorage.setItem('ringo_device_name', savedName); } catch (e) {}
+      try { sessionStorage.setItem('ringo_tab_device_name', savedName); } catch (e) {}
+      if (!localStorage.getItem('ringo_device_name')) {
+        try { localStorage.setItem('ringo_device_name', savedName); } catch (e) {}
+      }
     }
 
     const colors = [
       '#10b981', '#0ea5e9', '#8b5cf6', '#f59e0b',
       '#ec4899', '#06b6d4', '#14b8a6', '#6366f1'
     ];
-    let savedColor = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.color) || localStorage.getItem('ringo_device_color');
+    let savedColor = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.color) || sessionStorage.getItem('ringo_tab_device_color') || localStorage.getItem('ringo_device_color');
     if (!savedColor || !colors.includes(savedColor)) {
       savedColor = colors[Math.floor(Math.random() * colors.length)];
-      try { localStorage.setItem('ringo_device_color', savedColor); } catch (e) {}
+      try { sessionStorage.setItem('ringo_tab_device_color', savedColor); } catch (e) {}
+      if (!localStorage.getItem('ringo_device_color')) {
+        try { localStorage.setItem('ringo_device_color', savedColor); } catch (e) {}
+      }
     }
 
     const tag = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.tag) || `@${savedName}#${savedId.slice(-4).toUpperCase()}`;
@@ -350,22 +363,29 @@ class SyncEngine {
   }
 
   setLocalCursor(selectionStart, selectionEnd) {
-    this.awareness.setLocalStateField('cursor', {
-      index: selectionStart,
-      length: selectionEnd - selectionStart,
-      pageId: this.activePageId
-    });
+    if (selectionStart === null || selectionStart === undefined) {
+      this.awareness.setLocalStateField('cursor', null);
+    } else {
+      this.awareness.setLocalStateField('cursor', {
+        index: selectionStart,
+        length: (selectionEnd !== undefined ? selectionEnd : selectionStart) - selectionStart,
+        pageId: this.activePageId
+      });
+    }
     this.awareness.setLocalStateField('lastActive', Date.now());
+    this.broadcastAwareness();
   }
 
   setLocalTyping(isTyping) {
     this.awareness.setLocalStateField('isTyping', !!isTyping);
     this.awareness.setLocalStateField('lastActive', Date.now());
+    this.broadcastAwareness();
 
     if (isTyping) {
       clearTimeout(this.typingTimeout);
       this.typingTimeout = setTimeout(() => {
         this.awareness.setLocalStateField('isTyping', false);
+        this.broadcastAwareness();
       }, 1500);
     }
   }
@@ -379,13 +399,20 @@ class SyncEngine {
   }
 
   publishAwarenessUpdate(updateUint8) {
-    if (!this.client || !this.isConnected) return;
     const b64 = this.uint8ToBase64(updateUint8);
     const payload = JSON.stringify({
       senderId: this.deviceId,
       data: b64,
       timestamp: Date.now()
     });
+
+    if (this.broadcastChannel) {
+      try {
+        this.broadcastChannel.postMessage({ type: 'AWARENESS_UPDATE', data: b64 });
+      } catch (e) {}
+    }
+
+    if (!this.client || !this.isConnected) return;
     try {
       this.client.publish(`${this.topicPrefix}/awareness`, payload, { qos: 0 });
     } catch (e) {}
@@ -593,6 +620,11 @@ class SyncEngine {
     if (msg.type === 'YJS_UPDATE' && msg.data) {
       const update = this.base64ToUint8(msg.data);
       window.Y.applyUpdate(this.doc, update, 'remote');
+    } else if (msg.type === 'AWARENESS_UPDATE' && msg.data) {
+      try {
+        const update = this.base64ToUint8(msg.data);
+        window.awarenessProtocol.applyAwarenessUpdate(this.awareness, update, 'remote');
+      } catch (e) {}
     }
   }
 
@@ -639,16 +671,25 @@ class SyncEngine {
     return unique;
   }
 
-  addPage(title) {
+  addPage(title, lockOptions = null) {
     const cleanTitle = (title || '').trim() || 'Untitled Page';
     const pageId = 'p_' + Date.now() + '_' + Math.random().toString(36).substring(2, 6);
 
+    const pageMeta = {
+      id: pageId,
+      title: cleanTitle,
+      createdAt: Date.now()
+    };
+
+    if (lockOptions && lockOptions.isLocked) {
+      pageMeta.isLocked = true;
+      pageMeta.salt = lockOptions.salt;
+      pageMeta.keyHash = lockOptions.keyHash;
+      if (lockOptions.hint) pageMeta.hint = lockOptions.hint;
+    }
+
     this.doc.transact(() => {
-      this.yPagesMeta.push([{
-        id: pageId,
-        title: cleanTitle,
-        createdAt: Date.now()
-      }]);
+      this.yPagesMeta.push([pageMeta]);
       const yText = new window.Y.Text();
       this.yNotesPages.set(pageId, yText);
     });
@@ -774,6 +815,21 @@ class SyncEngine {
 
   addLink(item) {
     if (!item || !item.url) return;
+    if (!item.uploaderColor) {
+      item.uploaderColor = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.color) || this.deviceColor || '#10b981';
+    }
+    if (!item.uploaderName) {
+      item.uploaderName = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.username) || this.deviceName || 'User';
+    }
+    if (!item.uploaderTag) {
+      item.uploaderTag = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.tag) || (this.deviceInfo && this.deviceInfo.tag) || `@${this.deviceName}`;
+    }
+    if (!item.uploaderId) {
+      item.uploaderId = this.deviceId;
+    }
+    if (!item.uploaderOs) {
+      item.uploaderOs = (this.deviceInfo && this.deviceInfo.os) || 'Device';
+    }
     this.doc.transact(() => {
       this.yLinks.insert(0, [item]);
     });
@@ -1283,7 +1339,7 @@ class SyncEngine {
     const now = Date.now();
     for (const [clientId, state] of states.entries()) {
       if (state && state.user) {
-        const isSelf = (state.user.id === this.deviceId);
+        const isSelf = (clientId === this.doc.clientID);
         // Exclude stale peers not updated in 25 seconds
         if (state.lastActive && now - state.lastActive > 25000 && !isSelf) {
           continue;
@@ -1641,12 +1697,16 @@ class SyncEngine {
     const cursors = [];
 
     for (const [clientId, state] of states.entries()) {
-      if (state && state.user && state.user.id !== this.deviceId && state.cursor) {
+      if (clientId === this.doc.clientID) continue;
+
+      if (state && state.user && state.cursor) {
         if (state.cursor.pageId === this.activePageId) {
           cursors.push({
             clientId: clientId,
             user: state.user,
-            cursor: state.cursor
+            cursor: state.cursor,
+            isTyping: !!state.isTyping,
+            lastActive: state.lastActive || Date.now()
           });
         }
       }

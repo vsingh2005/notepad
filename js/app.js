@@ -63,6 +63,28 @@
   const typingIndicator = document.getElementById('typing-indicator');
   const typingText = document.getElementById('typing-text');
   const activePeersAvatars = document.getElementById('active-peers-avatars');
+  const pageLockStatusPill = document.getElementById('page-lock-status-pill');
+  const btnRelockPage = document.getElementById('btn-relock-page');
+  const notepadEditorWrap = document.querySelector('.notepad-editor-wrap');
+
+  // Passkey-Protected Pages & In-Sheet Locked Screen Elements
+  const newPageModal = document.getElementById('new-page-modal');
+  const btnCloseNewPageModal = document.getElementById('btn-close-new-page-modal');
+  const inputNewPageTitle = document.getElementById('input-new-page-title');
+  const checkNewPageLock = document.getElementById('check-new-page-lock');
+  const newPageLockFields = document.getElementById('new-page-lock-fields');
+  const inputNewPageKey = document.getElementById('input-new-page-key');
+  const btnGeneratePageKey = document.getElementById('btn-generate-page-key');
+  const btnCancelNewPage = document.getElementById('btn-cancel-new-page');
+  const btnConfirmNewPage = document.getElementById('btn-confirm-new-page');
+
+  const pageLockedScreen = document.getElementById('page-locked-screen');
+  const lockedScreenPageTitle = document.getElementById('locked-screen-page-title');
+  const lockedKeyForm = document.getElementById('locked-key-form');
+  const inputUnlockKey = document.getElementById('input-unlock-key');
+  const btnToggleUnlockKeyVis = document.getElementById('btn-toggle-unlock-key-vis');
+  const lockedErrorMsg = document.getElementById('locked-error-msg');
+  const btnSubmitUnlockKey = document.getElementById('btn-submit-unlock-key');
 
   // Attachments Elements
   const attachmentCountBadge = document.getElementById('attachment-count-badge');
@@ -178,6 +200,84 @@
     const savedAh = localStorage.getItem('ringo_author_highlights');
     if (savedAh !== null) authorHighlightsEnabled = (savedAh === 'true');
   } catch (e) {}
+
+  // Passkey-protected pages in-memory unlocked keys
+  const unlockedPageKeys = new Map();
+
+  const PageCrypto = {
+    generateSalt() {
+      const arr = new Uint8Array(16);
+      if (window.crypto && window.crypto.getRandomValues) {
+        window.crypto.getRandomValues(arr);
+      } else {
+        for (let i = 0; i < 16; i++) arr[i] = Math.floor(Math.random() * 256);
+      }
+      return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+    },
+
+    generatePasskey() {
+      const chars = 'abcdefghjkmnpqrstuvwxyz23456789';
+      let p1 = '';
+      let p2 = '';
+      for (let i = 0; i < 4; i++) p1 += chars.charAt(Math.floor(Math.random() * chars.length));
+      for (let i = 0; i < 4; i++) p2 += chars.charAt(Math.floor(Math.random() * chars.length));
+      return `${p1}-${p2}`;
+    },
+
+    async hashKey(salt, key) {
+      if (!key) return '';
+      const str = `${salt}:${key.trim()}`;
+      const enc = new TextEncoder();
+      if (window.crypto && window.crypto.subtle) {
+        const buf = await window.crypto.subtle.digest('SHA-256', enc.encode(str));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      } else {
+        let h = 0;
+        for (let i = 0; i < str.length; i++) {
+          h = ((h << 5) - h) + str.charCodeAt(i);
+          h |= 0;
+        }
+        return 'fb_' + Math.abs(h).toString(16);
+      }
+    },
+
+    async verifyKey(salt, key, keyHash) {
+      if (!key || !keyHash) return false;
+      const computed = await PageCrypto.hashKey(salt, key);
+      return computed === keyHash;
+    }
+  };
+
+  function isPageLocked(pageId) {
+    if (!pageId || !window.syncEngine) return false;
+    const meta = window.syncEngine.getPagesMeta();
+    const page = meta.find(p => p && p.id === pageId);
+    if (!page || !page.isLocked) return false;
+    if (unlockedPageKeys.has(pageId)) return false;
+    const cached = sessionStorage.getItem(`ringo_page_key_${pageId}`);
+    if (cached) return false;
+    return true;
+  }
+
+  async function isPageUnlockedAsync(pageId) {
+    if (!pageId || !window.syncEngine) return true;
+    const meta = window.syncEngine.getPagesMeta();
+    const page = meta.find(p => p && p.id === pageId);
+    if (!page || !page.isLocked) return true;
+
+    if (unlockedPageKeys.has(pageId)) return true;
+    const cached = sessionStorage.getItem(`ringo_page_key_${pageId}`);
+    if (cached) {
+      const valid = await PageCrypto.verifyKey(page.salt, cached, page.keyHash);
+      if (valid) {
+        unlockedPageKeys.set(pageId, cached);
+        return true;
+      } else {
+        try { sessionStorage.removeItem(`ringo_page_key_${pageId}`); } catch (e) {}
+      }
+    }
+    return false;
+  }
 
   // ==========================================
   // Pristine IndexedDB Storage for Attachments
@@ -326,6 +426,7 @@
     // Initial author highlights UI state & backdrop
     updateAuthorHighlightsUI();
     updateAuthorBackdrop();
+    updateLocalCaretColor();
 
     // View mode default
     const savedView = localStorage.getItem('ringo_view_mode') || 'split';
@@ -455,6 +556,10 @@
     // 2. Notes update from Yjs
     sync.onNotesUpdate = (text, pageId) => {
       if (pageId === activeNotePageId) {
+        if (isPageLocked(pageId)) {
+          // Do not leak notes into textarea when page is locked on this device
+          return;
+        }
         if (paperTextarea.value !== text) {
           const start = paperTextarea.selectionStart;
           const end = paperTextarea.selectionEnd;
@@ -471,6 +576,7 @@
           renderMarkdownPreview(paperTextarea.value);
         }
         updateAuthorBackdrop();
+        renderRemoteCursors();
       }
     };
 
@@ -482,6 +588,11 @@
         activeNotePageId = pagesMeta[0] ? pagesMeta[0].id : 'p_main';
       }
       renderNotePagesTabs(pagesMeta);
+
+      const activePage = pagesMeta.find(p => p && p.id === activeNotePageId);
+      if (activePage && activePage.isLocked && isPageLocked(activeNotePageId)) {
+        switchNotePage(activeNotePageId);
+      }
     };
 
     // 4. Awareness Peers & Live Typing
@@ -837,11 +948,70 @@
     }
   }
 
+  function resolveLinkUploader(item) {
+    const selfDevice = window.syncEngine ? window.syncEngine.deviceInfo : null;
+    const selfUser = (window.AuthIdentity && window.AuthIdentity.currentUser) || null;
+    const isSelf = !!((item.uploaderId && selfDevice && item.uploaderId === selfDevice.id) ||
+                      (item.uploaderTag && selfUser && item.uploaderTag === selfUser.tag) ||
+                      (item.addedBy && selfDevice && item.addedBy === selfDevice.name) ||
+                      (item.addedBy && selfUser && item.addedBy === selfUser.username));
+
+    // Color resolution
+    let color = item.uploaderColor;
+    if (!color && isSelf) {
+      color = (selfUser && selfUser.color) || (selfDevice && selfDevice.color);
+    }
+    // Check active awareness states
+    if (!color && window.syncEngine && window.syncEngine.awareness) {
+      const states = window.syncEngine.awareness.getStates();
+      for (const [, state] of states.entries()) {
+        if (state && state.user) {
+          if ((item.uploaderId && state.user.id === item.uploaderId) ||
+              (item.addedBy && state.user.name === item.addedBy) ||
+              (item.uploaderTag && state.user.tag === item.uploaderTag)) {
+            color = state.user.color;
+            break;
+          }
+        }
+      }
+    }
+    // Deterministic fallback color from palette based on uploader name/tag
+    if (!color) {
+      const colors = ['#10b981', '#0ea5e9', '#8b5cf6', '#f59e0b', '#ec4899', '#06b6d4', '#14b8a6', '#6366f1'];
+      const str = item.uploaderName || item.addedBy || item.uploaderTag || 'User';
+      let hash = 0;
+      for (let i = 0; i < str.length; i++) hash = (hash << 5) - hash + str.charCodeAt(i);
+      color = colors[Math.abs(hash) % colors.length];
+    }
+
+    const name = item.uploaderName || item.addedBy || (isSelf && selfUser ? selfUser.username : 'User');
+    const tag = item.uploaderTag || (isSelf && selfUser ? selfUser.tag : `@${name}`);
+    const os = item.uploaderOs || (isSelf && selfDevice ? selfDevice.os : 'Device');
+
+    return {
+      name,
+      tag,
+      color,
+      os,
+      isSelf,
+      initial: (name[0] || 'U').toUpperCase()
+    };
+  }
+
   function createLinkCardElement(item) {
     const card = document.createElement('div');
     card.className = `link-card ${item.opened ? 'opened' : ''} ${item.pinned ? 'pinned' : ''}`;
     card.dataset.id = item.id;
     card.setAttribute('draggable', isReadOnlyMode ? 'false' : 'true');
+
+    const uploader = resolveLinkUploader(item);
+    const bgTint = hexToRgba(uploader.color, 0.12);
+    const borderTint = hexToRgba(uploader.color, 0.35);
+    const shadowTint = hexToRgba(uploader.color, 0.22);
+    card.style.setProperty('--uploader-color', uploader.color);
+    card.style.setProperty('--uploader-tint', bgTint);
+    card.style.setProperty('--uploader-border', borderTint);
+    card.style.setProperty('--uploader-shadow', shadowTint);
 
     const faviconUrl = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(item.domain)}&sz=32`;
     const formattedTime = formatTimestamp(item.timestamp);
@@ -881,6 +1051,48 @@
             ${item.pinned ? `<span class="domain-badge badge-pinned" title="Pinned link">${ICONS.pinFilled} Pinned</span>` : ''}
             <span class="domain-badge ${badgeClass}">${escapeHtml(item.domain)}</span>
             <span class="link-time">${formattedTime}</span>
+            <div class="link-uploader-badge-wrap">
+              <span 
+                class="domain-badge badge-link-uploader" 
+                title="Uploaded by ${escapeHtml(uploader.name)} (${escapeHtml(uploader.tag)}) on ${escapeHtml(uploader.os)}"
+                tabindex="0"
+                role="button"
+                aria-label="Uploaded by ${escapeHtml(uploader.name)}"
+              >
+                <span class="uploader-avatar-dot" style="background-color: ${uploader.color};"></span>
+                <svg class="icon uploader-badge-icon" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+                <span class="uploader-badge-name">${escapeHtml(uploader.name)}</span>
+                ${uploader.isSelf ? '<span class="uploader-self-tag">(You)</span>' : ''}
+              </span>
+              <div class="link-uploader-hover-card" role="tooltip">
+                <div class="hover-card-header">
+                  <div class="hover-card-avatar" style="background-color: ${uploader.color};">
+                    ${uploader.initial}
+                  </div>
+                  <div class="hover-card-user">
+                    <div class="hover-card-name-row">
+                      <span class="hover-card-name">${escapeHtml(uploader.name)}</span>
+                      ${uploader.isSelf ? '<span class="hover-card-badge-self">You</span>' : ''}
+                    </div>
+                    <span class="hover-card-tag">${escapeHtml(uploader.tag)}</span>
+                  </div>
+                </div>
+                <div class="hover-card-body">
+                  <div class="hover-card-info-row">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                    <span>Uploaded this link</span>
+                  </div>
+                  <div class="hover-card-info-row">
+                    <svg class="icon" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span>${formattedTime}</span>
+                  </div>
+                  <div class="hover-card-info-row">
+                    <svg class="icon" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    <span>Device: ${escapeHtml(uploader.os)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
           ${previewHtml}
           <a class="link-url-text" href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(item.url)}">
@@ -1018,12 +1230,52 @@
   // ==========================================
   // Note Pages & Collaborative Notepad
   // ==========================================
-  function switchNotePage(pageId) {
+  async function switchNotePage(pageId) {
     if (!pageId) return;
     activeNotePageId = pageId;
     if (window.syncEngine) {
       window.syncEngine.setActivePage(pageId);
     }
+
+    const meta = window.syncEngine ? window.syncEngine.getPagesMeta() : [{ id: pageId, title: 'Main Notes' }];
+    const page = meta.find(p => p && p.id === pageId);
+
+    const isLocked = !!(page && page.isLocked);
+    let isUnlocked = false;
+
+    if (isLocked) {
+      isUnlocked = await isPageUnlockedAsync(pageId);
+    }
+
+    if (isLocked && !isUnlocked) {
+      // Locked page active on this device
+      if (pageLockedScreen) {
+        pageLockedScreen.style.display = 'flex';
+        if (lockedScreenPageTitle) lockedScreenPageTitle.textContent = page.title || 'Protected Page';
+        if (inputUnlockKey) inputUnlockKey.value = '';
+        if (lockedErrorMsg) lockedErrorMsg.style.display = 'none';
+      }
+      if (notepadEditorWrap) notepadEditorWrap.style.display = 'none';
+      if (paperMarkdownPreview) paperMarkdownPreview.style.display = 'none';
+      if (pageLockStatusPill) pageLockStatusPill.style.display = 'none';
+      paperTextarea.value = '';
+      statWordCount.textContent = '🔒 Locked';
+      statCharCount.textContent = '🔒 Locked';
+      if (authorHighlightsBackdrop) authorHighlightsBackdrop.innerHTML = '';
+      if (remoteCursorsLayer) remoteCursorsLayer.innerHTML = '';
+      renderNotePagesTabs(meta);
+      return;
+    }
+
+    // Normal or unlocked page
+    if (pageLockedScreen) pageLockedScreen.style.display = 'none';
+    if (notepadEditorWrap) notepadEditorWrap.style.display = (noteEditorMode === 'edit') ? 'block' : 'none';
+    if (paperMarkdownPreview) paperMarkdownPreview.style.display = (noteEditorMode === 'preview') ? 'block' : 'none';
+
+    if (pageLockStatusPill) {
+      pageLockStatusPill.style.display = isLocked ? 'inline-flex' : 'none';
+    }
+
     const currentText = (window.syncEngine ? window.syncEngine.getNoteText(pageId) : '') || '';
     paperTextarea.value = currentText;
     updateTextStats(currentText);
@@ -1031,7 +1283,7 @@
       renderMarkdownPreview(currentText);
     }
     updateAuthorBackdrop();
-    const meta = window.syncEngine ? window.syncEngine.getPagesMeta() : [{ id: pageId, title: 'Main Notes' }];
+    renderRemoteCursors();
     renderNotePagesTabs(meta);
   }
 
@@ -1044,7 +1296,16 @@
       btn.type = 'button';
       btn.className = `note-page-tab ${page.id === activeNotePageId ? 'active' : ''}`;
       
+      let lockIconHtml = '';
+      if (page.isLocked) {
+        const unlocked = !isPageLocked(page.id);
+        lockIconHtml = unlocked 
+          ? `<span class="tab-lock-icon tab-unlocked" title="Protected Page (Unlocked)">🔓</span>` 
+          : `<span class="tab-lock-icon" title="Protected Page (Locked)">🔒</span>`;
+      }
+
       btn.innerHTML = `
+        ${lockIconHtml}
         <span class="note-page-title">${escapeHtml(page.title)}</span>
         ${pagesMeta.length > 1 && !isReadOnlyMode ? `<span class="note-page-close" title="Delete page">×</span>` : ''}
       `;
@@ -1052,8 +1313,14 @@
       btn.addEventListener('click', (e) => {
         if (e.target.classList.contains('note-page-close')) {
           e.stopPropagation();
+          if (page.isLocked && isPageLocked(page.id)) {
+            showToast('Please unlock this protected page before deleting it.');
+            return;
+          }
           if (confirm(`Delete page "${page.title}"?`)) {
             window.syncEngine.deletePage(page.id);
+            unlockedPageKeys.delete(page.id);
+            try { sessionStorage.removeItem(`ringo_page_key_${page.id}`); } catch (err) {}
             const remaining = window.syncEngine.getPagesMeta();
             if (activeNotePageId === page.id && remaining.length > 0) {
               switchNotePage(remaining[0].id);
@@ -1069,6 +1336,10 @@
       // Double click to rename
       if (!isReadOnlyMode) {
         btn.addEventListener('dblclick', () => {
+          if (page.isLocked && isPageLocked(page.id)) {
+            showToast('Please unlock this protected page before renaming it.');
+            return;
+          }
           const newTitle = prompt('Rename notebook page:', page.title);
           if (newTitle && newTitle.trim()) {
             window.syncEngine.renamePage(page.id, newTitle.trim());
@@ -1336,19 +1607,222 @@
     });
   }
 
+  // ==========================================
+  // Collaborative Remote Cursors & Textarea Geometry
+  // ==========================================
+  let currentRemoteCursors = [];
+
+  function updateLocalCaretColor() {
+    if (!paperTextarea) return;
+    const curColor = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.color) ||
+                     (window.syncEngine && window.syncEngine.deviceColor) || '#10b981';
+    paperTextarea.style.caretColor = curColor;
+  }
+
+  function getTextareaCaretCoordinates(textarea, position) {
+    if (!textarea) return { top: 0, left: 0, height: 24 };
+
+    let mirror = document.getElementById('textarea-caret-mirror');
+    if (!mirror) {
+      mirror = document.createElement('div');
+      mirror.id = 'textarea-caret-mirror';
+      mirror.setAttribute('aria-hidden', 'true');
+      document.body.appendChild(mirror);
+    }
+
+    const computed = window.getComputedStyle(textarea);
+
+    mirror.style.position = 'absolute';
+    mirror.style.top = '-99999px';
+    mirror.style.left = '-99999px';
+    mirror.style.visibility = 'hidden';
+    mirror.style.pointerEvents = 'none';
+    mirror.style.whiteSpace = 'pre-wrap';
+    mirror.style.wordBreak = 'break-word';
+    mirror.style.overflowWrap = 'break-word';
+    mirror.style.boxSizing = computed.boxSizing;
+    mirror.style.width = textarea.clientWidth + 'px';
+    mirror.style.fontFamily = computed.fontFamily;
+    mirror.style.fontSize = computed.fontSize;
+    mirror.style.fontWeight = computed.fontWeight;
+    mirror.style.fontStyle = computed.fontStyle;
+    mirror.style.letterSpacing = computed.letterSpacing;
+    mirror.style.lineHeight = computed.lineHeight;
+    mirror.style.textTransform = computed.textTransform;
+    mirror.style.textAlign = computed.textAlign;
+    mirror.style.direction = computed.direction;
+    mirror.style.paddingTop = computed.paddingTop;
+    mirror.style.paddingRight = computed.paddingRight;
+    mirror.style.paddingBottom = computed.paddingBottom;
+    mirror.style.paddingLeft = computed.paddingLeft;
+    mirror.style.borderTopWidth = computed.borderTopWidth;
+    mirror.style.borderLeftWidth = computed.borderLeftWidth;
+    mirror.style.borderStyle = 'solid';
+
+    mirror.textContent = '';
+
+    const text = textarea.value || '';
+    const clampedPos = Math.max(0, Math.min(position, text.length));
+    const beforeText = text.substring(0, clampedPos);
+    const afterText = text.substring(clampedPos);
+
+    const spanBefore = document.createElement('span');
+    spanBefore.textContent = beforeText;
+    mirror.appendChild(spanBefore);
+
+    const caretMarker = document.createElement('span');
+    caretMarker.textContent = (!afterText || afterText[0] === '\n') ? '\u200b' : afterText[0];
+    mirror.appendChild(caretMarker);
+
+    if (afterText.length > 1) {
+      const spanAfter = document.createElement('span');
+      spanAfter.textContent = afterText.substring(1);
+      mirror.appendChild(spanAfter);
+    }
+
+    const borderTop = parseFloat(computed.borderTopWidth) || 0;
+    const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
+    const fontSize = parseFloat(computed.fontSize) || 16;
+    const lineHeight = parseFloat(computed.lineHeight) || (fontSize * 1.7);
+
+    const top = caretMarker.offsetTop + borderTop - textarea.scrollTop;
+    const left = caretMarker.offsetLeft + borderLeft - textarea.scrollLeft;
+    const height = caretMarker.offsetHeight || lineHeight;
+
+    return {
+      top,
+      left,
+      height: Math.max(height, lineHeight * 0.8)
+    };
+  }
+
+  function getTextareaSelectionRects(textarea, start, end) {
+    if (!textarea || start >= end) return [];
+    let mirror = document.getElementById('textarea-caret-mirror');
+    if (!mirror) {
+      getTextareaCaretCoordinates(textarea, 0);
+      mirror = document.getElementById('textarea-caret-mirror');
+    }
+    if (!mirror) return [];
+
+    const computed = window.getComputedStyle(textarea);
+    mirror.style.width = textarea.clientWidth + 'px';
+    mirror.textContent = '';
+
+    const text = textarea.value || '';
+    const textBefore = text.substring(0, start);
+    const textSelected = text.substring(start, end);
+
+    const spanBefore = document.createElement('span');
+    spanBefore.textContent = textBefore;
+    mirror.appendChild(spanBefore);
+
+    const spanSel = document.createElement('span');
+    spanSel.textContent = textSelected;
+    mirror.appendChild(spanSel);
+
+    const mirrorRect = mirror.getBoundingClientRect();
+    const clientRects = spanSel.getClientRects();
+    const rects = [];
+
+    const borderTop = parseFloat(computed.borderTopWidth) || 0;
+    const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
+
+    for (let i = 0; i < clientRects.length; i++) {
+      const r = clientRects[i];
+      rects.push({
+        top: r.top - mirrorRect.top + borderTop - textarea.scrollTop,
+        left: r.left - mirrorRect.left + borderLeft - textarea.scrollLeft,
+        width: r.width,
+        height: r.height
+      });
+    }
+    return rects;
+  }
+
   function renderRemoteCursors(cursors) {
+    if (cursors !== undefined) {
+      currentRemoteCursors = cursors || [];
+    }
+
+    updateLocalCaretColor();
+
     if (!remoteCursorsLayer) return;
     remoteCursorsLayer.innerHTML = '';
 
-    if (noteEditorMode === 'preview') return;
+    if (noteEditorMode === 'preview' || !paperTextarea) return;
 
-    // Show non-intrusive cursor indicator tags
-    cursors.forEach(c => {
-      const flag = document.createElement('div');
-      flag.className = 'remote-cursor-flag';
-      flag.style.backgroundColor = c.user.color;
-      flag.textContent = c.user.name;
-      remoteCursorsLayer.appendChild(flag);
+    currentRemoteCursors.forEach(c => {
+      if (!c || !c.user || !c.cursor || c.cursor.index == null) return;
+      if (c.cursor.pageId && c.cursor.pageId !== activeNotePageId) return;
+
+      const cursorIndex = Math.max(0, Math.min(c.cursor.index, paperTextarea.value.length));
+      const coords = getTextareaCaretCoordinates(paperTextarea, cursorIndex);
+
+      // Render selection boxes if remote user has highlighted text
+      if (c.cursor.length && c.cursor.length !== 0) {
+        const selStart = Math.min(cursorIndex, cursorIndex + c.cursor.length);
+        const selEnd = Math.max(cursorIndex, cursorIndex + c.cursor.length);
+        const rects = getTextareaSelectionRects(paperTextarea, selStart, selEnd);
+        rects.forEach(r => {
+          if (r.top < -30 || r.top > paperTextarea.clientHeight + 30) return;
+          const selBox = document.createElement('div');
+          selBox.className = 'remote-selection-box';
+          selBox.style.transform = `translate(${Math.round(r.left)}px, ${Math.round(r.top)}px)`;
+          selBox.style.width = `${Math.round(r.width)}px`;
+          selBox.style.height = `${Math.round(r.height)}px`;
+          selBox.style.backgroundColor = hexToRgba(c.user.color || '#10b981', 0.22);
+          remoteCursorsLayer.appendChild(selBox);
+        });
+      }
+
+      // Hide cursor if scrolled outside visible viewport
+      if (coords.top < -40 || coords.top > paperTextarea.clientHeight + 40) return;
+
+      const userColor = c.user.color || '#10b981';
+      const initial = ((c.user.name || 'U')[0] || 'U').toUpperCase();
+      const safeName = escapeHtml(c.user.name || 'User');
+      const safeTag = escapeHtml(c.user.tag || `@${c.user.name || 'User'}`);
+      const safeOs = escapeHtml(c.user.os || 'Device');
+      const statusText = c.isTyping ? '✍️ Currently typing...' : 'Active in notepad';
+
+      const cursorEl = document.createElement('div');
+      cursorEl.className = `remote-cursor ${c.isTyping ? 'is-typing' : ''}`;
+      cursorEl.style.transform = `translate(${Math.round(coords.left)}px, ${Math.round(coords.top)}px)`;
+      cursorEl.style.setProperty('--user-color', userColor);
+      cursorEl.dataset.clientId = c.clientId;
+
+      // Adjust positioning near container edges
+      if (coords.top < 32) cursorEl.classList.add('nametag-below');
+      if (coords.left > paperTextarea.clientWidth - 150) cursorEl.classList.add('nametag-align-right');
+
+      cursorEl.innerHTML = `
+        <div class="remote-cursor-caret" style="height: ${Math.round(coords.height)}px;"></div>
+        <div class="remote-cursor-cap" title="${safeName} (${safeTag})"></div>
+        <div class="remote-cursor-nametag ${c.isTyping ? 'is-typing' : ''}">
+          <span class="nametag-name">${safeName}</span>
+          ${c.isTyping ? `
+            <span class="nametag-typing-badge">
+              <span class="typing-wave"><span></span><span></span><span></span></span>
+              typing
+            </span>
+          ` : ''}
+          <div class="nametag-tooltip-card">
+            <div class="nametag-tooltip-header">
+              <span class="nametag-avatar" style="background-color: ${userColor};">${initial}</span>
+              <div class="nametag-user-info">
+                <span class="nametag-user-fullname">${safeName}</span>
+                <span class="nametag-user-tag">${safeTag}</span>
+              </div>
+            </div>
+            <div class="nametag-tooltip-meta">
+              <span class="nametag-os-badge">${safeOs}</span>
+              <span class="nametag-status">${statusText}</span>
+            </div>
+          </div>
+        </div>
+      `;
+      remoteCursorsLayer.appendChild(cursorEl);
     });
   }
 
@@ -2051,12 +2525,14 @@
 
     // 4. Collaborative Textarea listeners
     paperTextarea.addEventListener('input', () => {
-      if (isReadOnlyMode) return;
+      if (isReadOnlyMode || isPageLocked(activeNotePageId)) return;
       const text = paperTextarea.value;
       window.syncEngine.setNoteText(text, activeNotePageId);
       updateTextStats(text);
       updateAuthorBackdrop();
       window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
+      window.syncEngine.setLocalTyping(true);
+      renderRemoteCursors();
     });
 
     paperTextarea.addEventListener('scroll', () => {
@@ -2064,14 +2540,37 @@
         authorHighlightsBackdrop.scrollTop = paperTextarea.scrollTop;
         authorHighlightsBackdrop.scrollLeft = paperTextarea.scrollLeft;
       }
+      renderRemoteCursors();
     });
 
     paperTextarea.addEventListener('selectionchange', () => {
       window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
+      renderRemoteCursors();
     });
 
     paperTextarea.addEventListener('keyup', () => {
       window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
+      renderRemoteCursors();
+    });
+
+    paperTextarea.addEventListener('click', () => {
+      window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
+      renderRemoteCursors();
+    });
+
+    paperTextarea.addEventListener('focus', () => {
+      window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
+      renderRemoteCursors();
+    });
+
+    document.addEventListener('selectionchange', () => {
+      if (document.activeElement === paperTextarea) {
+        window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
+      }
+    });
+
+    window.addEventListener('resize', () => {
+      renderRemoteCursors();
     });
 
     // Toggle Author Highlighting button
@@ -2094,10 +2593,12 @@
         noteEditorMode = 'edit';
         btnModeEdit.classList.add('active');
         btnModePreview.classList.remove('active');
-        paperTextarea.style.display = 'block';
-        paperMarkdownPreview.style.display = 'none';
-        updateAuthorBackdrop();
-        paperTextarea.focus();
+        if (!isPageLocked(activeNotePageId)) {
+          paperTextarea.style.display = 'block';
+          paperMarkdownPreview.style.display = 'none';
+          updateAuthorBackdrop();
+          paperTextarea.focus();
+        }
       });
     }
 
@@ -2106,22 +2607,210 @@
         noteEditorMode = 'preview';
         btnModePreview.classList.add('active');
         btnModeEdit.classList.remove('active');
-        paperTextarea.style.display = 'none';
-        paperMarkdownPreview.style.display = 'block';
-        renderMarkdownPreview(paperTextarea.value);
+        if (!isPageLocked(activeNotePageId)) {
+          paperTextarea.style.display = 'none';
+          paperMarkdownPreview.style.display = 'block';
+          renderMarkdownPreview(paperTextarea.value);
+        }
       });
     }
 
-    // 6. Note Pages + Button
-    if (btnAddNotePage) {
-      btnAddNotePage.addEventListener('click', () => {
-        const title = prompt('Enter page title:', 'New Page');
-        if (title && title.trim()) {
-          const newId = window.syncEngine.addPage(title.trim());
-          if (newId) {
-            switchNotePage(newId);
-          }
+    // 6. Note Pages & Passkey Protection Handlers
+    function openNewPageModal() {
+      if (!newPageModal) return;
+      if (inputNewPageTitle) inputNewPageTitle.value = '';
+      if (checkNewPageLock) checkNewPageLock.checked = false;
+      if (newPageLockFields) newPageLockFields.style.display = 'none';
+      if (inputNewPageKey) inputNewPageKey.value = '';
+      newPageModal.classList.add('active');
+      setTimeout(() => {
+        if (inputNewPageTitle) inputNewPageTitle.focus();
+      }, 100);
+    }
+
+    function closeNewPageModal() {
+      if (newPageModal) newPageModal.classList.remove('active');
+    }
+
+    async function handleConfirmNewPage() {
+      const rawTitle = inputNewPageTitle ? inputNewPageTitle.value : '';
+      const title = (rawTitle || '').trim() || 'New Page';
+      const isLockEnabled = checkNewPageLock && checkNewPageLock.checked;
+
+      if (isLockEnabled) {
+        const key = (inputNewPageKey ? inputNewPageKey.value : '').trim();
+        if (!key) {
+          showToast('Please enter or generate a passkey');
+          if (inputNewPageKey) inputNewPageKey.focus();
+          return;
         }
+        const salt = PageCrypto.generateSalt();
+        const keyHash = await PageCrypto.hashKey(salt, key);
+        const lockOptions = {
+          isLocked: true,
+          salt: salt,
+          keyHash: keyHash
+        };
+
+        const newId = window.syncEngine.addPage(title, lockOptions);
+        if (newId) {
+          unlockedPageKeys.set(newId, key);
+          try {
+            sessionStorage.setItem(`ringo_page_key_${newId}`, key);
+          } catch (e) {}
+          closeNewPageModal();
+          await switchNotePage(newId);
+          showToastWithUndo(`Protected page "${title}" created (Key: ${key})`, () => {
+            navigator.clipboard.writeText(key);
+          });
+        }
+      } else {
+        const newId = window.syncEngine.addPage(title);
+        if (newId) {
+          closeNewPageModal();
+          await switchNotePage(newId);
+          showToast(`Page "${title}" created`);
+        }
+      }
+    }
+
+    async function handleUnlockPageSubmit(e) {
+      if (e && e.preventDefault) e.preventDefault();
+      if (!activeNotePageId || !inputUnlockKey) return;
+      const meta = window.syncEngine.getPagesMeta();
+      const page = meta.find(p => p && p.id === activeNotePageId);
+      if (!page || !page.isLocked) {
+        await switchNotePage(activeNotePageId);
+        return;
+      }
+
+      const key = inputUnlockKey.value.trim();
+      if (!key) {
+        if (lockedErrorMsg) {
+          lockedErrorMsg.textContent = 'Please enter the passkey.';
+          lockedErrorMsg.style.display = 'block';
+        }
+        return;
+      }
+
+      const valid = await PageCrypto.verifyKey(page.salt, key, page.keyHash);
+      if (valid) {
+        unlockedPageKeys.set(activeNotePageId, key);
+        try {
+          sessionStorage.setItem(`ringo_page_key_${activeNotePageId}`, key);
+        } catch (err) {}
+        if (lockedErrorMsg) lockedErrorMsg.style.display = 'none';
+        showToast('Page unlocked!');
+        await switchNotePage(activeNotePageId);
+        if (paperTextarea) paperTextarea.focus();
+      } else {
+        if (lockedErrorMsg) {
+          lockedErrorMsg.textContent = 'Incorrect key. Please try again.';
+          lockedErrorMsg.style.display = 'block';
+        }
+        const card = document.querySelector('.page-locked-card');
+        if (card) {
+          card.style.animation = 'none';
+          card.offsetHeight;
+          card.style.animation = 'shakeError 0.35s ease';
+        }
+        inputUnlockKey.select();
+      }
+    }
+
+    if (btnAddNotePage) {
+      btnAddNotePage.addEventListener('click', openNewPageModal);
+    }
+
+    if (btnCloseNewPageModal) {
+      btnCloseNewPageModal.addEventListener('click', closeNewPageModal);
+    }
+
+    if (btnCancelNewPage) {
+      btnCancelNewPage.addEventListener('click', closeNewPageModal);
+    }
+
+    if (newPageModal) {
+      newPageModal.addEventListener('click', (e) => {
+        if (e.target === newPageModal) closeNewPageModal();
+      });
+    }
+
+    if (checkNewPageLock) {
+      checkNewPageLock.addEventListener('change', () => {
+        const isChecked = checkNewPageLock.checked;
+        if (newPageLockFields) {
+          newPageLockFields.style.display = isChecked ? 'block' : 'none';
+        }
+        if (isChecked && inputNewPageKey && !inputNewPageKey.value.trim()) {
+          inputNewPageKey.value = PageCrypto.generatePasskey();
+        }
+      });
+    }
+
+    if (btnGeneratePageKey && inputNewPageKey) {
+      btnGeneratePageKey.addEventListener('click', () => {
+        inputNewPageKey.value = PageCrypto.generatePasskey();
+        showToast('Generated new passkey');
+      });
+    }
+
+    if (btnConfirmNewPage) {
+      btnConfirmNewPage.addEventListener('click', handleConfirmNewPage);
+    }
+
+    if (inputNewPageTitle) {
+      inputNewPageTitle.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleConfirmNewPage();
+        }
+      });
+    }
+
+    if (inputNewPageKey) {
+      inputNewPageKey.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleConfirmNewPage();
+        }
+      });
+    }
+
+    if (lockedKeyForm) {
+      lockedKeyForm.addEventListener('submit', handleUnlockPageSubmit);
+    }
+
+    if (btnSubmitUnlockKey) {
+      btnSubmitUnlockKey.addEventListener('click', handleUnlockPageSubmit);
+    }
+
+    if (inputUnlockKey) {
+      inputUnlockKey.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          handleUnlockPageSubmit(e);
+        }
+      });
+    }
+
+    if (btnToggleUnlockKeyVis && inputUnlockKey) {
+      btnToggleUnlockKeyVis.addEventListener('click', () => {
+        const isPass = inputUnlockKey.type === 'password';
+        inputUnlockKey.type = isPass ? 'text' : 'password';
+        btnToggleUnlockKeyVis.title = isPass ? 'Hide key' : 'Show key';
+      });
+    }
+
+    if (btnRelockPage) {
+      btnRelockPage.addEventListener('click', () => {
+        if (!activeNotePageId) return;
+        unlockedPageKeys.delete(activeNotePageId);
+        try {
+          sessionStorage.removeItem(`ringo_page_key_${activeNotePageId}`);
+        } catch (e) {}
+        showToast('Page locked');
+        switchNotePage(activeNotePageId);
       });
     }
 
@@ -2514,6 +3203,7 @@
         closeLightbox();
         closeShareModal();
         closeShortcutsModal();
+        closeNewPageModal();
         if (connectionPopover) connectionPopover.classList.remove('active');
         return;
       }
@@ -2609,6 +3299,13 @@
       return;
     }
 
+    const curUser = (window.AuthIdentity && window.AuthIdentity.currentUser) || null;
+    const uploaderName = curUser?.username || (window.syncEngine ? window.syncEngine.deviceName : 'User');
+    const uploaderColor = curUser?.color || (window.syncEngine ? window.syncEngine.deviceColor : '#10b981');
+    const uploaderTag = curUser?.tag || (window.syncEngine ? (window.syncEngine.deviceInfo && window.syncEngine.deviceInfo.tag) : `@${uploaderName}`);
+    const uploaderId = (window.syncEngine && window.syncEngine.deviceId) || 'dev_local';
+    const uploaderOs = (window.syncEngine && window.syncEngine.deviceInfo && window.syncEngine.deviceInfo.os) || 'Device';
+
     const tags = extractTags(rawNote);
     const linkItem = {
       id: 'link_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7),
@@ -2619,7 +3316,12 @@
       opened: false,
       pinned: false,
       tags: tags,
-      addedBy: window.syncEngine.deviceName,
+      addedBy: uploaderName,
+      uploaderName: uploaderName,
+      uploaderColor: uploaderColor,
+      uploaderTag: uploaderTag,
+      uploaderId: uploaderId,
+      uploaderOs: uploaderOs,
       preview: null
     };
 
@@ -2663,6 +3365,7 @@
 
     if (mode === 'notepad' || mode === 'split') {
       if (noteEditorMode === 'edit') paperTextarea.focus();
+      setTimeout(() => renderRemoteCursors(), 50);
     } else if (mode === 'links') {
       if (quickPasteInput) quickPasteInput.focus();
     }

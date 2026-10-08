@@ -1196,6 +1196,7 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
   gap: 10px;
   background: var(--bg-card);
   border: 1px solid var(--border-subtle);
+  border-left: 3.5px solid var(--uploader-color, var(--border-subtle));
   border-radius: var(--radius-lg);
   padding: 12px 14px;
   transition: var(--transition-smooth);
@@ -1212,7 +1213,8 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
 
 .link-card:hover {
   border-color: var(--primary-border);
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.05);
+  border-left-color: var(--uploader-color, var(--primary));
+  box-shadow: 0 4px 18px var(--uploader-shadow, rgba(0, 0, 0, 0.06));
   background: var(--bg-card-hover);
 }
 
@@ -3433,26 +3435,478 @@ body.view-attachments .attachments-view {
   text-decoration: underline;
 }
 
-/* Remote Cursor Overlay Flags */
+/* ==========================================================================
+   Collaborative In-Text Remote Cursors & Live Name Tags
+   ========================================================================== */
 .remote-cursors-layer {
   position: absolute;
   top: 0;
-  right: 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  width: 100%;
+  height: 100%;
   pointer-events: none;
-  z-index: 5;
+  overflow: hidden;
+  z-index: 4;
 }
 
-.remote-cursor-flag {
-  font-size: 10.5px;
-  font-weight: 700;
+.remote-cursor {
+  position: absolute;
+  pointer-events: auto;
+  z-index: 5;
+  transition: transform 0.08s cubic-bezier(0.2, 0, 0.2, 1);
+  will-change: transform;
+}
+
+/* Caret vertical bar */
+.remote-cursor-caret {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 2.5px;
+  background-color: var(--user-color, #10b981);
+  border-radius: 1.5px;
+  box-shadow: 0 0 8px var(--user-color, #10b981);
+  pointer-events: auto;
+  cursor: text;
+}
+
+/* Caret blinking animation when idle */
+.remote-cursor:not(.is-typing) .remote-cursor-caret {
+  animation: remoteCursorPulse 1.2s ease-in-out infinite;
+}
+
+@keyframes remoteCursorPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+.remote-cursor.is-typing .remote-cursor-caret {
+  opacity: 1;
+  box-shadow: 0 0 12px var(--user-color, #10b981), 0 0 2px #ffffff;
+}
+
+/* Small top cap / flag marker at top of caret */
+.remote-cursor-cap {
+  position: absolute;
+  top: -3px;
+  left: -2px;
+  width: 6.5px;
+  height: 6.5px;
+  background-color: var(--user-color, #10b981);
+  border-radius: 50% 50% 50% 0;
+  transform: rotate(-45deg);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+/* Name tag on hover / typing */
+.remote-cursor-nametag {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background-color: var(--user-color, #10b981);
   color: #ffffff;
-  padding: 2px 7px;
-  border-radius: var(--radius-full);
-  box-shadow: var(--shadow-sm);
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18), 0 1px 3px rgba(0, 0, 0, 0.12);
+  pointer-events: auto;
+  cursor: pointer;
+  user-select: none;
+  opacity: 0;
+  transform: translateY(4px) scale(0.95);
+  transform-origin: bottom left;
+  transition: opacity 0.18s cubic-bezier(0.16, 1, 0.3, 1), 
+              transform 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Arrow indicator beneath nametag */
+.remote-cursor-nametag::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 4px;
+  border-width: 4px;
+  border-style: solid;
+  border-color: var(--user-color, #10b981) transparent transparent transparent;
+}
+
+/* When user is actively typing, nametag is visible */
+.remote-cursor.is-typing .remote-cursor-nametag {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+}
+
+/* On hover over the cursor, cap, or nametag, show nametag */
+.remote-cursor:hover .remote-cursor-nametag,
+.remote-cursor-nametag:hover {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  z-index: 10;
+}
+
+/* Flip nametag below caret when at the very top of document */
+.remote-cursor.nametag-below .remote-cursor-nametag {
+  bottom: auto;
+  top: 100%;
+  margin-top: 5px;
+  margin-bottom: 0;
+  transform-origin: top left;
+}
+
+.remote-cursor.nametag-below .remote-cursor-nametag::after {
+  top: auto;
+  bottom: 100%;
+  border-color: transparent transparent var(--user-color, #10b981) transparent;
+}
+
+/* Align nametag to right when close to the right margin */
+.remote-cursor.nametag-align-right .remote-cursor-nametag {
+  left: auto;
+  right: -2px;
+  transform-origin: bottom right;
+}
+
+.remote-cursor.nametag-align-right .remote-cursor-nametag::after {
+  left: auto;
+  right: 4px;
+}
+
+/* Typing wave animated dots */
+.nametag-typing-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  font-weight: 500;
+  opacity: 0.95;
+  margin-left: 2px;
+}
+
+.typing-wave {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.typing-wave span {
+  width: 3px;
+  height: 3px;
+  background-color: #ffffff;
+  border-radius: 50%;
+  animation: typingDotWave 1.2s infinite ease-in-out;
+}
+
+.typing-wave span:nth-child(1) { animation-delay: 0s; }
+.typing-wave span:nth-child(2) { animation-delay: 0.2s; }
+.typing-wave span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typingDotWave {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+/* Hover Tooltip Card (rich details on hover) */
+.nametag-tooltip-card {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 0;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 190px;
+  padding: 10px 12px;
+  background: var(--bg-paper, #ffffff);
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
+  border-radius: 8px;
+  color: var(--text-main, #1e293b);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.22), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+  z-index: 20;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+.remote-cursor.nametag-below .nametag-tooltip-card {
+  bottom: auto;
+  top: calc(100% + 8px);
+}
+
+.remote-cursor.nametag-align-right .nametag-tooltip-card {
+  left: auto;
+  right: 0;
+}
+
+[data-theme="dark"] .nametag-tooltip-card,
+[data-theme="terminal"] .nametag-tooltip-card,
+[data-theme="ares"] .nametag-tooltip-card {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+.remote-cursor:hover .nametag-tooltip-card,
+.remote-cursor-nametag:hover .nametag-tooltip-card {
+  display: flex;
+}
+
+@keyframes tooltipFadeIn {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.nametag-tooltip-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nametag-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.nametag-user-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.nametag-user-fullname {
+  font-size: 12px;
+  font-weight: 700;
+  color: inherit;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.nametag-user-tag {
+  font-size: 10.5px;
+  color: var(--text-muted, #64748b);
+  font-family: var(--font-family-mono, monospace);
+}
+
+.nametag-tooltip-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 6px;
+  border-top: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+  font-size: 10.5px;
+  color: var(--text-muted, #64748b);
+}
+
+.nametag-os-badge {
+  background: var(--bg-paper-alt, rgba(0, 0, 0, 0.05));
+  padding: 1px 5px;
+  border-radius: 4px;
+  font-weight: 500;
+}
+
+/* Remote selection overlay */
+.remote-selection-box {
+  position: absolute;
+  pointer-events: none;
+  border-radius: 2px;
+  z-index: 3;
+}
+
+/* ==========================================================================
+   Link Uploader Color Tag & Rich Hover Card
+   ========================================================================== */
+.link-uploader-badge-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.badge-link-uploader {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: var(--radius-full, 9999px);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--uploader-tint, rgba(16, 185, 129, 0.1));
+  color: var(--uploader-color, #10b981);
+  border: 1px solid var(--uploader-border, rgba(16, 185, 129, 0.3));
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.badge-link-uploader:hover,
+.badge-link-uploader:focus-visible {
+  background: var(--uploader-color, #10b981);
+  color: #ffffff;
+  border-color: var(--uploader-color, #10b981);
+  box-shadow: 0 2px 8px var(--uploader-shadow, rgba(16, 185, 129, 0.35));
+}
+
+.badge-link-uploader .uploader-avatar-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--uploader-color, #10b981);
+  flex-shrink: 0;
+  transition: background-color 0.15s ease;
+}
+
+.badge-link-uploader:hover .uploader-avatar-dot {
+  background-color: #ffffff;
+}
+
+.badge-link-uploader .uploader-badge-icon {
+  width: 11px;
+  height: 11px;
+  stroke: currentColor;
+  stroke-width: 2.2;
+  fill: none;
+}
+
+.uploader-self-tag {
+  font-size: 9.5px;
   opacity: 0.85;
+  font-weight: 500;
+}
+
+/* Rich Uploader Hover Card */
+.link-uploader-hover-card {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  display: none;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 210px;
+  padding: 12px;
+  background: var(--bg-paper, #ffffff);
+  border: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.1));
+  border-radius: var(--radius-lg, 10px);
+  box-shadow: 0 12px 28px -4px rgba(0, 0, 0, 0.18), 0 4px 10px -2px rgba(0, 0, 0, 0.08);
+  z-index: 100;
+  pointer-events: none;
+  animation: tooltipFadeIn 0.15s ease-out;
+}
+
+[data-theme="dark"] .link-uploader-hover-card,
+[data-theme="terminal"] .link-uploader-hover-card,
+[data-theme="ares"] .link-uploader-hover-card {
+  background: #1e293b;
+  border-color: rgba(255, 255, 255, 0.12);
+  color: #f1f5f9;
+}
+
+.link-uploader-badge-wrap:hover .link-uploader-hover-card,
+.badge-link-uploader:focus-visible + .link-uploader-hover-card {
+  display: flex;
+}
+
+.hover-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.hover-card-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+  flex-shrink: 0;
+}
+
+.hover-card-user {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.hover-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.hover-card-name {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text-main, #0f172a);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+[data-theme="dark"] .hover-card-name,
+[data-theme="terminal"] .hover-card-name,
+[data-theme="ares"] .hover-card-name {
+  color: #f8fafc;
+}
+
+.hover-card-badge-self {
+  font-size: 9.5px;
+  font-weight: 700;
+  background: var(--uploader-color, #10b981);
+  color: #ffffff;
+  padding: 1px 5px;
+  border-radius: 9999px;
+  line-height: 1.2;
+}
+
+.hover-card-tag {
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+  font-family: var(--font-family-mono, monospace);
+}
+
+.hover-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-subtle, rgba(0, 0, 0, 0.08));
+}
+
+.hover-card-info-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  color: var(--text-muted, #64748b);
+}
+
+.hover-card-info-row .icon {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+  flex-shrink: 0;
 }
 
 /* ==========================================================================
@@ -4483,4 +4937,251 @@ body.view-attachments .attachments-view {
   gap: 8px;
   justify-content: center;
   width: 100%;
+}
+
+/* ==========================================================================
+   Feature 5: Passkey-Protected & Encrypted Note Pages
+   ========================================================================== */
+
+.tab-lock-icon {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  margin-right: 4px;
+  line-height: 1;
+}
+
+.tab-lock-icon.tab-unlocked {
+  opacity: 0.85;
+}
+
+.page-lock-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+  border-radius: var(--radius-full);
+  background: var(--accent-orange-bg, rgba(217, 119, 6, 0.12));
+  border: 1px solid var(--accent-orange-border, rgba(217, 119, 6, 0.35));
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--accent-orange, #d97706);
+}
+
+.lock-pill-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lock-pill-badge .icon {
+  width: 12px;
+  height: 12px;
+  stroke: currentColor;
+}
+
+.btn-relock-page {
+  padding: 1px 6px;
+  font-size: 10px;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  border: 1px solid currentColor;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  transition: opacity 0.2s ease;
+}
+
+.btn-relock-page:hover {
+  opacity: 0.75;
+}
+
+.lock-page-toggle-box {
+  padding: 14px;
+  background: var(--bg-paper-alt);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  margin-bottom: 14px;
+}
+
+.lock-toggle-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+  user-select: none;
+}
+
+.lock-toggle-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  color: var(--text-main);
+}
+
+.lock-toggle-checkbox {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+  accent-color: var(--primary);
+}
+
+.lock-toggle-desc {
+  font-size: 12px;
+  color: var(--text-muted);
+  margin: 6px 0 0 0;
+  line-height: 1.4;
+}
+
+.new-page-lock-fields {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border-subtle);
+}
+
+/* In-Sheet Page Locked Screen */
+.page-locked-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 380px;
+  padding: 40px 16px;
+  box-sizing: border-box;
+}
+
+.page-locked-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 380px;
+  width: 100%;
+  padding: 34px 26px;
+  background: var(--bg-paper);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-paper);
+  backdrop-filter: blur(12px);
+  animation: fadeInLockedCard 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.locked-icon-wrap {
+  width: 58px;
+  height: 58px;
+  border-radius: var(--radius-full);
+  background: var(--accent-orange-bg, rgba(217, 119, 6, 0.15));
+  border: 1px solid var(--accent-orange-border, rgba(217, 119, 6, 0.35));
+  color: var(--accent-orange, #d97706);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.locked-icon-wrap .icon {
+  width: 28px;
+  height: 28px;
+  stroke-width: 2;
+}
+
+.locked-page-title {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--text-main);
+  margin: 0 0 8px 0;
+}
+
+.locked-page-desc {
+  font-size: 13px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  margin: 0 0 22px 0;
+  max-width: 300px;
+}
+
+.locked-key-form {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.locked-input-row {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.locked-key-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 44px 11px 14px;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  background: var(--bg-paper-alt);
+  color: var(--text-main);
+  font-size: 14px;
+  font-family: inherit;
+  transition: var(--transition-smooth);
+  outline: none;
+}
+
+.locked-key-input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(45, 138, 94, 0.18);
+}
+
+.btn-toggle-key-visibility {
+  position: absolute;
+  right: 10px;
+  background: transparent;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+}
+
+.btn-toggle-key-visibility:hover {
+  color: var(--text-main);
+}
+
+.locked-error-msg {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent-red);
+  margin-top: -4px;
+  animation: shakeError 0.35s ease;
+}
+
+.locked-submit-btn {
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 11px 16px;
+  font-size: 13px;
+  font-weight: 700;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+}
+
+@keyframes shakeError {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-6px); }
+  40%, 80% { transform: translateX(6px); }
+}
+
+@keyframes fadeInLockedCard {
+  from { opacity: 0; transform: translateY(8px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
 }

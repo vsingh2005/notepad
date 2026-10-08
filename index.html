@@ -319,6 +319,14 @@
             </button>
           </div>
 
+          <div class="page-lock-status-pill" id="page-lock-status-pill" style="display: none;">
+            <span class="lock-pill-badge" id="lock-pill-badge">
+              <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>Protected</span>
+            </span>
+            <button type="button" class="btn btn-xs btn-outline btn-relock-page" id="btn-relock-page" title="Lock page now">Lock</button>
+          </div>
+
           <div class="typing-indicator" id="typing-indicator" style="display: none;">
             <span class="typing-dot"></span>
             <span class="typing-text" id="typing-text">Someone is typing...</span>
@@ -330,6 +338,33 @@
         </div>
 
         <div class="notepad-editor-container" id="notepad-editor-container">
+          <!-- In-Sheet Page Locked Screen -->
+          <div class="page-locked-screen" id="page-locked-screen" style="display: none;">
+            <div class="page-locked-card">
+              <div class="locked-icon-wrap">
+                <svg class="icon icon-xl" viewBox="0 0 24 24">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                </svg>
+              </div>
+              <h3 class="locked-page-title" id="locked-screen-page-title">Protected Page</h3>
+              <p class="locked-page-desc">This notebook page is protected with a secret passkey. Enter the key below to view and edit its notes.</p>
+              <form class="locked-key-form" id="locked-key-form" onsubmit="return false;">
+                <div class="locked-input-row">
+                  <input type="password" id="input-unlock-key" class="locked-key-input" placeholder="Enter page key..." autocomplete="off" />
+                  <button type="button" class="btn-toggle-key-visibility" id="btn-toggle-unlock-key-vis" title="Show or hide key">
+                    <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
+                  </button>
+                </div>
+                <div class="locked-error-msg" id="locked-error-msg" style="display: none;">Incorrect key. Please try again.</div>
+                <button type="submit" class="btn btn-primary locked-submit-btn" id="btn-submit-unlock-key">
+                  <svg class="icon" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                  <span>Unlock Page</span>
+                </button>
+              </form>
+            </div>
+          </div>
+
           <div class="notepad-editor-wrap">
             <div id="author-highlights-backdrop" class="author-highlights-backdrop" aria-hidden="true"></div>
             <textarea 
@@ -338,10 +373,10 @@
               placeholder="Start typing your notes freely here... Keystrokes sync automatically across any browser and device in real time with Yjs CRDT."
               spellcheck="false"
             ></textarea>
+            <!-- Remote Cursors Overlay Container -->
+            <div id="remote-cursors-layer" class="remote-cursors-layer"></div>
           </div>
           <div id="paper-markdown-preview" class="paper-markdown-preview" style="display: none;"></div>
-          <!-- Remote Cursors Overlay Container -->
-          <div id="remote-cursors-layer" class="remote-cursors-layer"></div>
         </div>
       </div>
 
@@ -644,6 +679,59 @@
         <div class="shortcut-item"><span class="shortcut-desc">Paste Link from Anywhere</span><kbd>Ctrl / Cmd + V</kbd></div>
         <div class="shortcut-item"><span class="shortcut-desc">Toggle Markdown Preview</span><kbd>Ctrl / Cmd + M</kbd></div>
         <div class="shortcut-item"><span class="shortcut-desc">Close Modals / Overlays</span><kbd>Esc</kbd></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Create New Page Modal Dialog -->
+  <div class="modal-overlay" id="new-page-modal" style="display: none;">
+    <div class="modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--primary);"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="12" y1="18" x2="12" y2="12"></line><line x1="9" y1="15" x2="15" y2="15"></line></svg>
+          <span>Create Notebook Page</span>
+        </div>
+        <button class="btn-close-modal" id="btn-close-new-page-modal" aria-label="Close dialog">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="modal-body" style="padding-top: 8px;">
+        <div class="form-group" style="margin-bottom: 16px;">
+          <label for="input-new-page-title" class="form-label" style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">Page Title:</label>
+          <input type="text" id="input-new-page-title" class="rename-input" placeholder="e.g. Ideas, Project Vault, Private Notes..." style="width: 100%; box-sizing: border-box;" autocomplete="off" />
+        </div>
+
+        <div class="lock-page-toggle-box">
+          <label class="lock-toggle-label">
+            <span class="lock-toggle-title">
+              <svg class="icon" viewBox="0 0 24 24" style="width: 16px; height: 16px; color: var(--accent-orange);"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+              <span>Protect with Secret Key</span>
+            </span>
+            <input type="checkbox" id="check-new-page-lock" class="lock-toggle-checkbox" />
+          </label>
+          <p class="lock-toggle-desc">
+            Require other users and devices to enter a passkey to view or edit this page.
+          </p>
+
+          <!-- Collapsible key input section -->
+          <div id="new-page-lock-fields" class="new-page-lock-fields" style="display: none;">
+            <label for="input-new-page-key" class="form-label" style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">Passkey / Secret Key:</label>
+            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+              <input type="text" id="input-new-page-key" class="rename-input" placeholder="Enter key or generate one..." style="flex: 1;" autocomplete="off" />
+              <button type="button" class="btn btn-sm btn-outline" id="btn-generate-page-key" title="Generate random secure key">
+                <span>🎲 Generate</span>
+              </button>
+            </div>
+            <div style="font-size: 11px; color: var(--text-subtle);">
+              Share this key only with collaborators you want to give access to this page.
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; gap: 8px; margin-top: 16px;">
+          <button type="button" class="btn" id="btn-cancel-new-page">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btn-confirm-new-page">Create Page</button>
+        </div>
       </div>
     </div>
   </div>
