@@ -73,7 +73,7 @@ class NatureAmbience {
       case 'ares':
         return {
           bgGradient: ['#0a0705', '#170c07', '#0f0805'],
-          leafColors: ['rgba(255, 71, 26, 0.65)', 'rgba(249, 115, 22, 0.55)', 'rgba(239, 68, 68, 0.45)'],
+          leafColors: ['#ff471a', '#ff652f', '#f97316', '#ff3814', '#e11d48'],
           fireflyColor: 'rgba(255, 140, 50, 0.95)',
           glowColor: 'rgba(255, 71, 26, 0.28)',
           sunbeam: 'rgba(255, 90, 30, 0.08)'
@@ -81,7 +81,7 @@ class NatureAmbience {
       case 'dark':
         return {
           bgGradient: ['#060a12', '#0b1424', '#0d1f18'],
-          leafColors: ['rgba(52, 211, 153, 0.45)', 'rgba(16, 185, 129, 0.35)', 'rgba(99, 102, 241, 0.35)'],
+          leafColors: ['#10b981', '#22c55e', '#34d399', '#059669', '#14b8a6'],
           fireflyColor: 'rgba(52, 211, 153, 0.75)',
           glowColor: 'rgba(16, 185, 129, 0.15)',
           sunbeam: 'rgba(52, 211, 153, 0.04)'
@@ -89,7 +89,7 @@ class NatureAmbience {
       case 'sepia':
         return {
           bgGradient: ['#e4d4c0', '#eedfcb', '#f5e9d7'],
-          leafColors: ['rgba(180, 83, 9, 0.35)', 'rgba(217, 119, 6, 0.3)', 'rgba(146, 64, 14, 0.25)'],
+          leafColors: ['#b45309', '#d97706', '#92400e', '#78350f', '#c2410c'],
           fireflyColor: 'rgba(245, 158, 11, 0.7)',
           glowColor: 'rgba(245, 158, 11, 0.12)',
           sunbeam: 'rgba(251, 191, 36, 0.06)'
@@ -97,7 +97,7 @@ class NatureAmbience {
       case 'terminal':
         return {
           bgGradient: ['#020805', '#05180f', '#031008'],
-          leafColors: ['rgba(74, 222, 128, 0.5)', 'rgba(34, 197, 94, 0.4)', 'rgba(21, 128, 61, 0.4)'],
+          leafColors: ['#22c55e', '#4ade80', '#16a34a', '#15803d', '#86efac'],
           fireflyColor: 'rgba(74, 222, 128, 0.9)',
           glowColor: 'rgba(34, 197, 94, 0.2)',
           sunbeam: 'rgba(74, 222, 128, 0.05)'
@@ -106,7 +106,7 @@ class NatureAmbience {
       default:
         return {
           bgGradient: ['#e8f4ec', '#f0f7f3', '#eaf2f8'],
-          leafColors: ['rgba(34, 197, 94, 0.45)', 'rgba(16, 185, 129, 0.4)', 'rgba(56, 189, 248, 0.35)'],
+          leafColors: ['#2d8a5e', '#40a374', '#52b788', '#16a34a', '#10b981'],
           fireflyColor: 'rgba(16, 185, 129, 0.65)',
           glowColor: 'rgba(52, 211, 153, 0.18)',
           sunbeam: 'rgba(255, 255, 255, 0.35)'
@@ -118,8 +118,8 @@ class NatureAmbience {
     this.leaves = [];
     this.particles = [];
 
-    // Ambient floating leaves (20 leaves for smooth frame rates on mobile & desktop)
-    const leafCount = Math.min(22, Math.floor(this.width / 55));
+    // Ambient floating leaves (22-36 leaves for visible density)
+    const leafCount = Math.max(22, Math.min(36, Math.floor(this.width / 42)));
     for (let i = 0; i < leafCount; i++) {
       this.leaves.push(this.createLeaf(true));
     }
@@ -142,12 +142,12 @@ class NatureAmbience {
     const config = this.getThemeConfig();
     return {
       x: Math.random() * this.width,
-      y: randomY ? Math.random() * this.height : -30,
-      size: 13 + Math.random() * 16,
-      speedY: 0.5 + Math.random() * 0.9,
-      speedX: -0.3 + Math.random() * 0.7,
+      y: randomY ? Math.random() * this.height : -35,
+      size: 16 + Math.random() * 18,
+      speedY: 0.55 + Math.random() * 0.85,
+      speedX: -0.35 + Math.random() * 0.7,
       rotation: Math.random() * Math.PI * 2,
-      rotationSpeed: (Math.random() - 0.5) * 0.018,
+      rotationSpeed: (Math.random() - 0.5) * 0.016,
       swayOffset: Math.random() * Math.PI * 2,
       swaySpeed: 0.012 + Math.random() * 0.018,
       color: config.leafColors[Math.floor(Math.random() * config.leafColors.length)]
@@ -247,6 +247,7 @@ class NatureAmbience {
       this.ctx.translate(leaf.x, leaf.y);
       this.ctx.rotate(leaf.rotation);
 
+      // Solid opaque leaf body
       this.ctx.beginPath();
       this.ctx.moveTo(0, -leaf.size);
       this.ctx.bezierCurveTo(leaf.size * 0.7, -leaf.size * 0.4, leaf.size * 0.7, leaf.size * 0.4, 0, leaf.size);
@@ -254,12 +255,31 @@ class NatureAmbience {
       this.ctx.fillStyle = leaf.color;
       this.ctx.fill();
 
-      // Stem
+      // Crisp leaf edge contour so leaf stands out distinctly
+      this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.35)';
+      this.ctx.lineWidth = 1;
+      this.ctx.stroke();
+
+      // Main central vein/stem
       this.ctx.beginPath();
       this.ctx.moveTo(0, -leaf.size * 0.85);
       this.ctx.lineTo(0, leaf.size * 0.85);
-      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
-      this.ctx.lineWidth = 1;
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
+      this.ctx.lineWidth = 1.3;
+      this.ctx.stroke();
+
+      // Organic side veins
+      this.ctx.beginPath();
+      this.ctx.moveTo(0, -leaf.size * 0.35);
+      this.ctx.lineTo(leaf.size * 0.32, -leaf.size * 0.15);
+      this.ctx.moveTo(0, -leaf.size * 0.35);
+      this.ctx.lineTo(-leaf.size * 0.32, -leaf.size * 0.15);
+      this.ctx.moveTo(0, leaf.size * 0.15);
+      this.ctx.lineTo(leaf.size * 0.28, leaf.size * 0.35);
+      this.ctx.moveTo(0, leaf.size * 0.15);
+      this.ctx.lineTo(-leaf.size * 0.28, leaf.size * 0.35);
+      this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+      this.ctx.lineWidth = 0.9;
       this.ctx.stroke();
 
       this.ctx.restore();

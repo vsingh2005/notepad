@@ -189,75 +189,6 @@
   background-size: 24px 24px;
 }
 
-/* Translucent Glass Ruling: Silky Frosted Glass revealing living nature ambience canvas without sacrificing readability */
-[data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(255, 255, 255, 0.58) !important;
-  backdrop-filter: blur(28px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
-  border-color: rgba(255, 255, 255, 0.45) !important;
-  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.6) !important;
-}
-
-[data-theme="ares"][data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(28, 11, 8, 0.52) !important;
-  backdrop-filter: blur(26px) saturate(190%) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(190%) !important;
-  border-color: rgba(255, 71, 26, 0.38) !important;
-  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 71, 26, 0.18), inset 0 1px 1px rgba(255, 120, 60, 0.3) !important;
-}
-
-[data-theme="dark"][data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(14, 30, 21, 0.52) !important;
-  backdrop-filter: blur(26px) saturate(185%) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(185%) !important;
-  border-color: rgba(74, 222, 128, 0.3) !important;
-  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(74, 222, 128, 0.25) !important;
-}
-
-[data-theme="terminal"][data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(5, 13, 8, 0.58) !important;
-  backdrop-filter: blur(24px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
-  border-color: rgba(34, 197, 94, 0.38) !important;
-}
-
-[data-theme="sepia"][data-ruling="translucent"] .paper-sheet {
-  background-color: rgba(247, 241, 227, 0.62) !important;
-  backdrop-filter: blur(26px) saturate(180%) !important;
-  -webkit-backdrop-filter: blur(26px) saturate(180%) !important;
-  border-color: rgba(138, 86, 32, 0.3) !important;
-}
-
-[data-ruling="translucent"] .paper-textarea {
-  background: transparent !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
-}
-
-[data-theme="light"][data-ruling="translucent"] .paper-textarea,
-:root:not([data-theme])[data-ruling="translucent"] .paper-textarea {
-  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
-}
-
-[data-ruling="translucent"] .link-card,
-[data-ruling="translucent"] .notepad-toolbar,
-[data-ruling="translucent"] .paper-footer-bar {
-  background-color: rgba(255, 255, 255, 0.35) !important;
-  backdrop-filter: blur(14px) !important;
-  -webkit-backdrop-filter: blur(14px) !important;
-}
-
-[data-theme="ares"][data-ruling="translucent"] .link-card,
-[data-theme="ares"][data-ruling="translucent"] .notepad-toolbar,
-[data-theme="ares"][data-ruling="translucent"] .paper-footer-bar {
-  background-color: rgba(38, 15, 11, 0.5) !important;
-}
-
-[data-theme="dark"][data-ruling="translucent"] .link-card,
-[data-theme="dark"][data-ruling="translucent"] .notepad-toolbar,
-[data-theme="dark"][data-ruling="translucent"] .paper-footer-bar {
-  background-color: rgba(20, 42, 30, 0.5) !important;
-}
-
 /* Reset & Viewport Control */
 *, *::before, *::after {
   box-sizing: border-box;
@@ -1017,6 +948,139 @@ body.view-split .paper-footer-bar {
 
 [data-theme="terminal"] .paper-sheet {
   background-color: rgba(7, 23, 16, 0.93);
+}
+
+/* ==========================================================================
+   Translucent Glass Paper Ruling (Crystal Clear with Opaque Floating Leaves)
+   ========================================================================== */
+[data-ruling="translucent"] .paper-sheet,
+body[data-ruling="translucent"] .paper-sheet,
+html[data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(255, 255, 255, 0.38) !important;
+  backdrop-filter: blur(2px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(2px) saturate(135%) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-theme="ares"] [data-ruling="translucent"] .paper-sheet,
+[data-theme="ares"][data-ruling="translucent"] .paper-sheet,
+html[data-theme="ares"] body[data-ruling="translucent"] .paper-sheet,
+html[data-theme="ares"][data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(22, 9, 7, 0.38) !important;
+  backdrop-filter: blur(2px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(2px) saturate(140%) !important;
+  border-color: rgba(255, 71, 26, 0.4) !important;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 71, 26, 0.18), inset 0 1px 1px rgba(255, 120, 60, 0.3) !important;
+}
+
+[data-theme="dark"] [data-ruling="translucent"] .paper-sheet,
+[data-theme="dark"][data-ruling="translucent"] .paper-sheet,
+html[data-theme="dark"] body[data-ruling="translucent"] .paper-sheet,
+html[data-theme="dark"][data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(10, 22, 16, 0.38) !important;
+  backdrop-filter: blur(2px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(2px) saturate(140%) !important;
+  border-color: rgba(74, 222, 128, 0.32) !important;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(74, 222, 128, 0.25) !important;
+}
+
+[data-theme="terminal"] [data-ruling="translucent"] .paper-sheet,
+[data-theme="terminal"][data-ruling="translucent"] .paper-sheet,
+html[data-theme="terminal"] body[data-ruling="translucent"] .paper-sheet,
+html[data-theme="terminal"][data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(4, 16, 9, 0.4) !important;
+  backdrop-filter: blur(2px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(2px) saturate(140%) !important;
+  border-color: rgba(34, 197, 94, 0.4) !important;
+}
+
+[data-theme="sepia"] [data-ruling="translucent"] .paper-sheet,
+[data-theme="sepia"][data-ruling="translucent"] .paper-sheet,
+html[data-theme="sepia"] body[data-ruling="translucent"] .paper-sheet,
+html[data-theme="sepia"][data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(245, 237, 222, 0.45) !important;
+  backdrop-filter: blur(2px) saturate(135%) !important;
+  -webkit-backdrop-filter: blur(2px) saturate(135%) !important;
+  border-color: rgba(138, 86, 32, 0.32) !important;
+}
+
+/* Ensure paper view backgrounds don't occlude leaves */
+[data-ruling="translucent"] .paper-content,
+[data-ruling="translucent"] .raw-notepad-view,
+[data-ruling="translucent"] .notepad-editor-container,
+[data-ruling="translucent"] .link-list-view,
+[data-ruling="translucent"] .attachments-view {
+  background: transparent !important;
+  background-image: none !important;
+}
+
+/* Crisp text contrast and legibility over passing leaves */
+[data-ruling="translucent"] .paper-textarea {
+  background: transparent !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8), 0 0 1px rgba(0, 0, 0, 0.9) !important;
+  font-weight: 500;
+}
+
+[data-theme="ares"] [data-ruling="translucent"] .paper-textarea,
+[data-theme="ares"][data-ruling="translucent"] .paper-textarea,
+[data-theme="dark"] [data-ruling="translucent"] .paper-textarea,
+[data-theme="dark"][data-ruling="translucent"] .paper-textarea,
+[data-theme="terminal"] [data-ruling="translucent"] .paper-textarea,
+[data-theme="terminal"][data-ruling="translucent"] .paper-textarea {
+  color: #ffffff !important;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.95), 0 0 8px rgba(0, 0, 0, 0.8), 0 0 2px #000000 !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="light"] [data-ruling="translucent"] .paper-textarea,
+[data-theme="light"][data-ruling="translucent"] .paper-textarea,
+html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
+  text-shadow: 0 1px 3px rgba(255, 255, 255, 0.95), 0 0 8px rgba(255, 255, 255, 0.9), 0 0 2px #ffffff !important;
+  color: #132a1e !important;
+  font-weight: 500 !important;
+}
+
+[data-theme="sepia"] [data-ruling="translucent"] .paper-textarea,
+[data-theme="sepia"][data-ruling="translucent"] .paper-textarea {
+  text-shadow: 0 1px 3px rgba(250, 246, 238, 0.95), 0 0 8px rgba(250, 246, 238, 0.9), 0 0 2px #faf6ee !important;
+  color: #2b1704 !important;
+  font-weight: 500 !important;
+}
+
+/* Translucent frosted link cards & toolbars */
+[data-ruling="translucent"] .link-card {
+  background-color: rgba(255, 255, 255, 0.42) !important;
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
+}
+
+[data-theme="ares"] [data-ruling="translucent"] .link-card,
+[data-theme="ares"][data-ruling="translucent"] .link-card {
+  background-color: rgba(38, 15, 11, 0.45) !important;
+  border-color: rgba(255, 71, 26, 0.35) !important;
+}
+
+[data-theme="dark"] [data-ruling="translucent"] .link-card,
+[data-theme="dark"][data-ruling="translucent"] .link-card {
+  background-color: rgba(18, 36, 26, 0.45) !important;
+}
+
+[data-ruling="translucent"] .notepad-toolbar,
+[data-ruling="translucent"] .paper-footer-bar {
+  background-color: rgba(255, 255, 255, 0.25) !important;
+  backdrop-filter: blur(3px) !important;
+  -webkit-backdrop-filter: blur(3px) !important;
+}
+
+[data-theme="ares"] [data-ruling="translucent"] .notepad-toolbar,
+[data-theme="ares"] [data-ruling="translucent"] .paper-footer-bar {
+  background-color: rgba(38, 15, 11, 0.35) !important;
+}
+
+[data-theme="dark"] [data-ruling="translucent"] .notepad-toolbar,
+[data-theme="dark"] [data-ruling="translucent"] .paper-footer-bar {
+  background-color: rgba(18, 36, 26, 0.35) !important;
 }
 
 /* Link Cards View */

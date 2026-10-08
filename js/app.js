@@ -345,6 +345,7 @@
 
   function applyRuling(rulingKey) {
     if (!rulingKey) return;
+    document.documentElement.setAttribute('data-ruling', rulingKey);
     document.body.setAttribute('data-ruling', rulingKey);
     localStorage.setItem('syncpad_ruling', rulingKey);
     if (selectRuling) selectRuling.value = rulingKey;
