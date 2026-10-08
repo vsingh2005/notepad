@@ -2617,19 +2617,30 @@
 
     // 6. Note Pages & Passkey Protection Handlers
     function openNewPageModal() {
-      if (!newPageModal) return;
+      if (!newPageModal) {
+        const title = prompt('Enter page title:', 'New Page');
+        if (title && title.trim()) {
+          const newId = window.syncEngine.addPage(title.trim());
+          if (newId) switchNotePage(newId);
+        }
+        return;
+      }
       if (inputNewPageTitle) inputNewPageTitle.value = '';
       if (checkNewPageLock) checkNewPageLock.checked = false;
       if (newPageLockFields) newPageLockFields.style.display = 'none';
       if (inputNewPageKey) inputNewPageKey.value = '';
+      newPageModal.style.display = 'flex';
       newPageModal.classList.add('active');
       setTimeout(() => {
         if (inputNewPageTitle) inputNewPageTitle.focus();
-      }, 100);
+      }, 80);
     }
 
     function closeNewPageModal() {
-      if (newPageModal) newPageModal.classList.remove('active');
+      if (newPageModal) {
+        newPageModal.classList.remove('active');
+        newPageModal.style.display = 'none';
+      }
     }
 
     async function handleConfirmNewPage() {
