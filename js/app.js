@@ -25,7 +25,7 @@
     drag: `<svg class="icon icon-drag" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1.5"></circle><circle cx="15" cy="6" r="1.5"></circle><circle cx="9" cy="12" r="1.5"></circle><circle cx="15" cy="12" r="1.5"></circle><circle cx="9" cy="18" r="1.5"></circle><circle cx="15" cy="18" r="1.5"></circle></svg>`
   };
 
-  const MAX_FILE_SIZE_BYTES = 75 * 1024 * 1024; // 75 MB limit
+  const MAX_FILE_SIZE_BYTES = 500 * 1024 * 1024; // 500 MB limit (WebRTC LAN P2P direct streaming)
 
   // DOM Elements
   const quickPasteInput = document.getElementById('quick-paste-input');
@@ -369,9 +369,15 @@
   }
 
   function getFontFamily(fontKey) {
-    if (fontKey === 'mono') return 'var(--font-family-mono)';
-    if (fontKey === 'serif') return 'var(--font-family-serif)';
-    return 'var(--font-family-sans)';
+    switch (fontKey) {
+      case 'mono': return 'var(--font-family-mono)';
+      case 'serif': return 'var(--font-family-serif)';
+      case 'handwriting': return 'var(--font-family-handwriting)';
+      case 'outfit': return 'var(--font-family-outfit)';
+      case 'slab': return 'var(--font-family-slab)';
+      case 'dyslexic': return 'var(--font-family-dyslexic)';
+      default: return 'var(--font-family-sans)';
+    }
   }
 
   // ==========================================
@@ -442,6 +448,19 @@
       // Active peers avatar pills
       renderPeerAvatars(peers);
       renderPopoverPeers(peers, count);
+
+      // P2P Direct Attachments online status badge
+      const p2pBadgeText = document.getElementById('p2p-badge-text');
+      const p2pDot = document.getElementById('p2p-dot');
+      if (p2pBadgeText && p2pDot) {
+        if (count >= 2) {
+          p2pDot.className = 'p2p-dot ready';
+          p2pBadgeText.textContent = `${count} devices ready for P2P`;
+        } else {
+          p2pDot.className = 'p2p-dot';
+          p2pBadgeText.textContent = 'Waiting for 2nd device...';
+        }
+      }
     };
 
     // 5. Remote Cursors
@@ -487,11 +506,12 @@
     };
 
     let progressStallTimer = null;
-    sync.onTransferProgress = ({ attachmentId, name, percent, type }) => {
+    sync.onTransferProgress = ({ attachmentId, name, percent, type, mode }) => {
       if (transferProgressContainer && transferProgressFill && transferProgressText) {
         transferProgressContainer.style.display = 'flex';
         transferProgressFill.style.width = `${percent}%`;
-        transferProgressText.textContent = `${type === 'upload' ? 'Sending' : 'Downloading'} "${name}": ${percent}%`;
+        const prefix = mode === 'p2p' ? '⚡ Direct P2P' : 'Cloud';
+        transferProgressText.textContent = `${prefix} ${type === 'upload' ? 'Sending' : 'Downloading'} "${name}": ${percent}%`;
         clearTimeout(progressStallTimer);
         if (percent >= 100) {
           setTimeout(() => {
@@ -1228,10 +1248,15 @@
     if (!fileList || fileList.length === 0) return;
     const files = Array.from(fileList);
 
+    const peerCount = (window.syncEngine && window.syncEngine.getOnlinePeerCount) ? window.syncEngine.getOnlinePeerCount() : 1;
+    if (peerCount < 2) {
+      showToast('Notice: At least 2 devices must have the site open in Attachments to stream large files.');
+    }
+
     for (const rawFile of files) {
       if (rawFile.size > MAX_FILE_SIZE_BYTES) {
         const sizeMB = (rawFile.size / (1024 * 1024)).toFixed(1);
-        showToast(`File "${rawFile.name}" (${sizeMB} MB) exceeds the 75 MB limit.`);
+        showToast(`File "${rawFile.name}" (${sizeMB} MB) exceeds the 500 MB limit.`);
         continue;
       }
 
@@ -1502,7 +1527,12 @@
   async function downloadAttachment(item, previewUrl) {
     if (!item.blob) {
       item.autoDownloadWhenReady = true;
-      showToast(`Syncing "${item.name}" from your peer device... Download will start as soon as it arrives.`);
+      const peerCount = (window.syncEngine && window.syncEngine.getOnlinePeerCount) ? window.syncEngine.getOnlinePeerCount() : 1;
+      if (peerCount < 2) {
+        showToast(`Waiting for peer: At least 2 devices must have the site open in Attachments to stream "${item.name}".`);
+      } else {
+        showToast(`Syncing "${item.name}" from your peer device... Download will start as soon as it arrives.`);
+      }
       if (window.syncEngine && window.syncEngine.requestAttachmentStreaming) {
         window.syncEngine.requestAttachmentStreaming(item.id, item.sourceDeviceId);
       }
@@ -2301,6 +2331,13 @@
     if (tabAttachments) tabAttachments.classList.toggle('active', mode === 'attachments');
 
     try { localStorage.setItem('ringo_view_mode', mode); } catch (e) {}
+
+    if (mode === 'attachments') {
+      const peerCount = (window.syncEngine && window.syncEngine.getOnlinePeerCount) ? window.syncEngine.getOnlinePeerCount() : 1;
+      if (peerCount < 2) {
+        showToast('⚡ Note: At least 2 devices must have the site open to the Attachments section to transfer files.');
+      }
+    }
 
     if (mode === 'notepad' || mode === 'split') {
       if (noteEditorMode === 'edit') paperTextarea.focus();

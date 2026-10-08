@@ -42,8 +42,12 @@
   --shadow-float: 0 20px 25px -5px rgba(19, 42, 30, 0.1), 0 8px 10px -6px rgba(19, 42, 30, 0.1);
 
   --font-family-sans: -apple-system, BlinkMacSystemFont, "Inter", "Segoe UI", Roboto, sans-serif;
-  --font-family-mono: "SF Mono", "JetBrains Mono", "Cascadia Code", Menlo, monospace;
-  --font-family-serif: "Newsreader", "Lora", Georgia, Cambria, serif;
+  --font-family-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", Menlo, monospace;
+  --font-family-serif: "Lora", "Newsreader", Georgia, Cambria, serif;
+  --font-family-handwriting: "Caveat", "Architects Daughter", cursive, sans-serif;
+  --font-family-outfit: "Outfit", "Plus Jakarta Sans", -apple-system, sans-serif;
+  --font-family-slab: "Roboto Slab", "Rockwell", Georgia, serif;
+  --font-family-dyslexic: "Comic Neue", "Trebuchet MS", "Arial Rounded MT Bold", sans-serif;
   --font-current: var(--font-family-sans);
 
   --line-height-ruled: 34px;
@@ -183,6 +187,75 @@
 [data-ruling="dots"] .paper-content {
   background-image: radial-gradient(var(--border-subtle) 1.5px, transparent 1.5px);
   background-size: 24px 24px;
+}
+
+/* Translucent Glass Ruling: Silky Frosted Glass revealing living nature ambience canvas without sacrificing readability */
+[data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(255, 255, 255, 0.58) !important;
+  backdrop-filter: blur(28px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(180%) !important;
+  border-color: rgba(255, 255, 255, 0.45) !important;
+  box-shadow: 0 16px 40px -8px rgba(0, 0, 0, 0.12), inset 0 1px 2px rgba(255, 255, 255, 0.6) !important;
+}
+
+[data-theme="ares"][data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(28, 11, 8, 0.52) !important;
+  backdrop-filter: blur(26px) saturate(190%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(190%) !important;
+  border-color: rgba(255, 71, 26, 0.38) !important;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), 0 0 35px rgba(255, 71, 26, 0.18), inset 0 1px 1px rgba(255, 120, 60, 0.3) !important;
+}
+
+[data-theme="dark"][data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(14, 30, 21, 0.52) !important;
+  backdrop-filter: blur(26px) saturate(185%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(185%) !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+  box-shadow: 0 20px 50px -10px rgba(0, 0, 0, 0.8), inset 0 1px 1px rgba(74, 222, 128, 0.25) !important;
+}
+
+[data-theme="terminal"][data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(5, 13, 8, 0.58) !important;
+  backdrop-filter: blur(24px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(24px) saturate(180%) !important;
+  border-color: rgba(34, 197, 94, 0.38) !important;
+}
+
+[data-theme="sepia"][data-ruling="translucent"] .paper-sheet {
+  background-color: rgba(247, 241, 227, 0.62) !important;
+  backdrop-filter: blur(26px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(26px) saturate(180%) !important;
+  border-color: rgba(138, 86, 32, 0.3) !important;
+}
+
+[data-ruling="translucent"] .paper-textarea {
+  background: transparent !important;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+}
+
+[data-theme="light"][data-ruling="translucent"] .paper-textarea,
+:root:not([data-theme])[data-ruling="translucent"] .paper-textarea {
+  text-shadow: 0 1px 1px rgba(255, 255, 255, 0.6);
+}
+
+[data-ruling="translucent"] .link-card,
+[data-ruling="translucent"] .notepad-toolbar,
+[data-ruling="translucent"] .paper-footer-bar {
+  background-color: rgba(255, 255, 255, 0.35) !important;
+  backdrop-filter: blur(14px) !important;
+  -webkit-backdrop-filter: blur(14px) !important;
+}
+
+[data-theme="ares"][data-ruling="translucent"] .link-card,
+[data-theme="ares"][data-ruling="translucent"] .notepad-toolbar,
+[data-theme="ares"][data-ruling="translucent"] .paper-footer-bar {
+  background-color: rgba(38, 15, 11, 0.5) !important;
+}
+
+[data-theme="dark"][data-ruling="translucent"] .link-card,
+[data-theme="dark"][data-ruling="translucent"] .notepad-toolbar,
+[data-theme="dark"][data-ruling="translucent"] .paper-footer-bar {
+  background-color: rgba(20, 42, 30, 0.5) !important;
 }
 
 /* Reset & Viewport Control */
@@ -3853,6 +3926,116 @@ body.view-attachments .attachments-view {
 
   .connection-popover.active {
     transform: translateY(0) scale(1) !important;
+  }
+}
+
+/* ==========================================================================
+   P2P Direct Attachments Notification Banner
+   ========================================================================== */
+.p2p-info-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: rgba(255, 71, 26, 0.09);
+  border: 1px solid rgba(255, 71, 26, 0.28);
+  border-radius: var(--radius-md);
+  padding: 11px 15px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+}
+
+[data-theme="ares"] .p2p-info-banner {
+  background: rgba(255, 71, 26, 0.12);
+  border-color: rgba(255, 71, 26, 0.35);
+}
+
+[data-theme="dark"] .p2p-info-banner {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.25);
+}
+
+.p2p-info-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(255, 71, 26, 0.18);
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .p2p-info-icon {
+  background: rgba(74, 222, 128, 0.2);
+  color: #4ade80;
+}
+
+.p2p-info-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.p2p-info-title {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-main);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.p2p-info-desc {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.p2p-info-desc strong {
+  color: var(--text-main);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.p2p-peer-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(0, 0, 0, 0.25);
+  color: var(--text-main);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.p2p-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f59e0b;
+}
+
+.p2p-dot.ready {
+  background: #10b981;
+  box-shadow: 0 0 8px #10b981;
+}
+
+@media (max-width: 680px) {
+  .p2p-info-banner {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .p2p-peer-badge {
+    align-self: flex-start;
   }
 }
 

@@ -54,6 +54,19 @@ class SyncEngine {
     this.incomingTransfers = new Map(); // attachmentId -> { chunks, totalChunks, received, meta, timer }
     this.activeUploads = new Map();
 
+    // WebRTC Direct P2P DataChannels (Up to 500 MB Transfer)
+    this.peerConnections = new Map(); // peerId -> RTCPeerConnection
+    this.dataChannels = new Map(); // peerId -> RTCDataChannel
+    this.p2pIncomingTransfers = new Map(); // attachmentId -> { ... }
+    this.onlinePeerCount = 1;
+    this.rtcConfig = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' }
+      ]
+    };
+
     // Callbacks
     this.onLinksUpdate = null;
     this.onNotesUpdate = null; // (text, pageId)
@@ -391,7 +404,8 @@ class SyncEngine {
           `${this.topicPrefix}/attachments/req/any`,
           `${this.topicPrefix}/attachments/chunk/${this.deviceId}/+`,
           `${this.topicPrefix}/attachments/missing/${this.deviceId}`,
-          `${this.topicPrefix}/attachments/missing/any`
+          `${this.topicPrefix}/attachments/missing/any`,
+          `${this.topicPrefix}/webrtc/signal/${this.deviceId}`
         ];
 
         this.client.subscribe(topics, { qos: 1 }, (err) => {
@@ -484,6 +498,8 @@ class SyncEngine {
         this.handleIncomingAttachmentChunk(msg);
       } else if (topic.startsWith(`${this.topicPrefix}/attachments/missing/${this.deviceId}`) || topic === `${this.topicPrefix}/attachments/missing/any`) {
         this.handleMissingChunksRequest(msg);
+      } else if (topic === `${this.topicPrefix}/webrtc/signal/${this.deviceId}`) {
+        this.handleWebRTCSignal(msg);
       }
     } catch (e) {
       console.warn('[SyncEngine] Parse incoming error:', e);
@@ -824,6 +840,19 @@ class SyncEngine {
   }
 
   requestAttachmentStreaming(attachmentId, targetPeerId) {
+    const dc = targetPeerId ? this.dataChannels.get(targetPeerId) : null;
+    if (dc && dc.readyState === 'open') {
+      try {
+        dc.send(JSON.stringify({ type: 'P2P_FILE_REQ', attachmentId }));
+        return;
+      } catch (e) {}
+    }
+
+    // Try initiating WebRTC connection in parallel with target peer
+    if (targetPeerId && targetPeerId !== this.deviceId) {
+      try { this.getOrCreatePeerConnection(targetPeerId, true); } catch (e) {}
+    }
+
     if (!this.client || !this.isConnected) return;
     const reqPayload = {
       attachmentId: attachmentId,
@@ -847,7 +876,8 @@ class SyncEngine {
     const item = await window.AttachmentDB.get(req.attachmentId);
     if (!item || !item.blob) return;
 
-    this.streamAttachmentBinary(item, req.requesterId);
+    // Stream over fast WebRTC LAN P2P with fail-safe MQTT chunk fallback
+    this.streamOverWebRTC(item, req.requesterId);
   }
 
   async streamAttachmentBinary(item, targetPeerId) {
@@ -1210,6 +1240,8 @@ class SyncEngine {
       }
     }
 
+    this.onlinePeerCount = activePeers.length;
+
     if (this.onPeersUpdate) {
       this.onPeersUpdate({
         count: activePeers.length,
@@ -1218,6 +1250,328 @@ class SyncEngine {
         typingUsers: typingUsers
       });
     }
+  }
+
+  getOnlinePeerCount() {
+    return this.onlinePeerCount || 1;
+  }
+
+  // ==========================================
+  // WebRTC P2P Direct DataChannel Transfers
+  // ==========================================
+
+  sendWebRTCSignal(targetPeerId, signal) {
+    if (!this.client || !this.isConnected || !targetPeerId) return;
+    const payload = {
+      senderId: this.deviceId,
+      targetId: targetPeerId,
+      signal: signal,
+      timestamp: Date.now()
+    };
+    try {
+      this.client.publish(`${this.topicPrefix}/webrtc/signal/${targetPeerId}`, JSON.stringify(payload), { qos: 1 });
+    } catch (e) {}
+  }
+
+  async handleWebRTCSignal(msg) {
+    if (!msg || !msg.senderId || !msg.signal) return;
+    const peerId = msg.senderId;
+    const signal = msg.signal;
+
+    try {
+      if (signal.type === 'offer') {
+        const pc = this.getOrCreatePeerConnection(peerId, false);
+        await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        this.sendWebRTCSignal(peerId, { type: 'answer', sdp: pc.localDescription });
+      } else if (signal.type === 'answer') {
+        const pc = this.peerConnections.get(peerId);
+        if (pc && pc.signalingState !== 'closed') {
+          await pc.setRemoteDescription(new RTCSessionDescription(signal.sdp));
+        }
+      } else if (signal.type === 'candidate' && signal.candidate) {
+        const pc = this.peerConnections.get(peerId);
+        if (pc && pc.remoteDescription && pc.signalingState !== 'closed') {
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(signal.candidate));
+          } catch (e) {}
+        }
+      }
+    } catch (err) {
+      console.warn('[SyncEngine] WebRTC signal error:', err);
+    }
+  }
+
+  getOrCreatePeerConnection(peerId, isInitiator) {
+    if (this.peerConnections.has(peerId)) {
+      const existing = this.peerConnections.get(peerId);
+      if (existing.connectionState !== 'closed' && existing.connectionState !== 'failed') {
+        return existing;
+      }
+      try { existing.close(); } catch (e) {}
+      this.peerConnections.delete(peerId);
+      this.dataChannels.delete(peerId);
+    }
+
+    const pc = new RTCPeerConnection(this.rtcConfig);
+    this.peerConnections.set(peerId, pc);
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        this.sendWebRTCSignal(peerId, { type: 'candidate', candidate: event.candidate });
+      }
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed') {
+        this.peerConnections.delete(peerId);
+        this.dataChannels.delete(peerId);
+      }
+    };
+
+    if (isInitiator) {
+      try {
+        const dc = pc.createDataChannel('syncpad_p2p_channel', { ordered: true });
+        this.setupDataChannel(peerId, dc);
+        pc.createOffer().then(offer => pc.setLocalDescription(offer)).then(() => {
+          this.sendWebRTCSignal(peerId, { type: 'offer', sdp: pc.localDescription });
+        }).catch(err => console.warn('[SyncEngine] Create offer error:', err));
+      } catch (e) {
+        console.warn('[SyncEngine] Create DataChannel error:', e);
+      }
+    } else {
+      pc.ondatachannel = (event) => {
+        this.setupDataChannel(peerId, event.channel);
+      };
+    }
+
+    return pc;
+  }
+
+  setupDataChannel(peerId, dc) {
+    dc.binaryType = 'arraybuffer';
+    dc.onopen = () => {
+      this.dataChannels.set(peerId, dc);
+    };
+    dc.onclose = () => {
+      this.dataChannels.delete(peerId);
+    };
+    dc.onerror = (e) => {
+      console.warn('[SyncEngine] DataChannel error with peer', peerId, e);
+    };
+    dc.onmessage = (event) => {
+      this.handleDataChannelMessage(peerId, event.data);
+    };
+  }
+
+  async handleDataChannelMessage(peerId, data) {
+    if (typeof data === 'string') {
+      try {
+        const packet = JSON.parse(data);
+        if (packet.type === 'P2P_FILE_START') {
+          this.p2pIncomingTransfers.set(packet.attachmentId, {
+            meta: packet,
+            chunks: new Array(packet.totalChunks),
+            totalChunks: packet.totalChunks,
+            received: 0,
+            senderId: peerId
+          });
+          if (this.onTransferProgress) {
+            this.onTransferProgress({
+              attachmentId: packet.attachmentId,
+              name: packet.name,
+              percent: 0,
+              type: 'download',
+              mode: 'p2p'
+            });
+          }
+        } else if (packet.type === 'P2P_FILE_END') {
+          const state = this.p2pIncomingTransfers.get(packet.attachmentId);
+          if (state && state.received === state.totalChunks) {
+            let totalLen = 0;
+            for (const c of state.chunks) if (c) totalLen += c.byteLength;
+            const merged = new Uint8Array(totalLen);
+            let offset = 0;
+            for (const c of state.chunks) {
+              if (c) {
+                merged.set(c, offset);
+                offset += c.byteLength;
+              }
+            }
+            this.p2pIncomingTransfers.delete(packet.attachmentId);
+            const blob = new Blob([merged], { type: state.meta.mimeType || 'application/octet-stream' });
+            const fullItem = {
+              id: state.meta.attachmentId,
+              name: state.meta.name,
+              type: state.meta.mimeType,
+              category: state.meta.category,
+              size: state.meta.size,
+              sizeFormatted: state.meta.sizeFormatted,
+              timestamp: state.meta.timestamp || Date.now(),
+              note: state.meta.note || '',
+              thumbData: state.meta.thumbData || null,
+              blob: blob,
+              isDownloading: false,
+              uploaderId: state.meta.uploaderId || peerId,
+              uploaderName: state.meta.uploaderName || 'Device',
+              sourceDeviceId: peerId,
+              sourceDeviceName: state.meta.uploaderName || 'Device'
+            };
+            if (window.AttachmentDB) {
+              await window.AttachmentDB.put(fullItem);
+            }
+            if (this.onAttachmentDataReceived) {
+              this.onAttachmentDataReceived(fullItem);
+            }
+            if (this.onTransferProgress) {
+              this.onTransferProgress({
+                attachmentId: packet.attachmentId,
+                name: state.meta.name,
+                percent: 100,
+                type: 'download',
+                mode: 'p2p'
+              });
+            }
+          }
+        } else if (packet.type === 'P2P_FILE_REQ') {
+          if (window.AttachmentDB) {
+            const item = await window.AttachmentDB.get(packet.attachmentId);
+            if (item && item.blob) {
+              this.streamOverWebRTC(item, peerId);
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[SyncEngine] P2P JSON parse error:', e);
+      }
+    } else if (data instanceof ArrayBuffer) {
+      if (data.byteLength < 4) return;
+      const view = new DataView(data);
+      const chunkIndex = view.getUint32(0, true);
+      const chunkBytes = new Uint8Array(data, 4);
+
+      for (const [attId, state] of this.p2pIncomingTransfers.entries()) {
+        if (state.senderId === peerId && !state.chunks[chunkIndex] && chunkIndex < state.totalChunks) {
+          state.chunks[chunkIndex] = chunkBytes;
+          state.received++;
+          const percent = Math.round((state.received / state.totalChunks) * 100);
+          if (this.onTransferProgress && (chunkIndex % 8 === 0 || state.received === state.totalChunks)) {
+            this.onTransferProgress({
+              attachmentId: attId,
+              name: state.meta.name,
+              percent: percent,
+              type: 'download',
+              mode: 'p2p'
+            });
+          }
+          break;
+        }
+      }
+    }
+  }
+
+  async streamOverWebRTC(item, targetPeerId) {
+    let dc = this.dataChannels.get(targetPeerId);
+    if (!dc || dc.readyState !== 'open') {
+      this.getOrCreatePeerConnection(targetPeerId, true);
+      let waitTime = 0;
+      while (waitTime < 2000) {
+        await new Promise(r => setTimeout(r, 150));
+        waitTime += 150;
+        dc = this.dataChannels.get(targetPeerId);
+        if (dc && dc.readyState === 'open') break;
+      }
+    }
+
+    if (!dc || dc.readyState !== 'open') {
+      return this.streamAttachmentBinary(item, targetPeerId);
+    }
+
+    const chunkSize = 65536; // 64 KB binary chunks for fast LAN P2P
+    const totalChunks = Math.ceil(item.blob.size / chunkSize);
+
+    const startPacket = {
+      type: 'P2P_FILE_START',
+      attachmentId: item.id,
+      name: item.name,
+      size: item.size,
+      sizeFormatted: item.sizeFormatted,
+      mimeType: item.type,
+      category: item.category,
+      note: item.note || '',
+      thumbData: item.thumbData || null,
+      uploaderId: item.uploaderId || this.deviceId,
+      uploaderName: item.uploaderName || this.deviceName,
+      totalChunks: totalChunks,
+      chunkSize: chunkSize
+    };
+
+    try {
+      dc.send(JSON.stringify(startPacket));
+    } catch (e) {
+      return this.streamAttachmentBinary(item, targetPeerId);
+    }
+
+    if (this.onTransferProgress) {
+      this.onTransferProgress({
+        attachmentId: item.id,
+        name: item.name,
+        percent: 0,
+        type: 'upload',
+        mode: 'p2p'
+      });
+    }
+
+    for (let i = 0; i < totalChunks; i++) {
+      if (dc.readyState !== 'open') {
+        console.warn('[SyncEngine] P2P DataChannel closed during stream, falling back to MQTT');
+        return this.streamAttachmentBinary(item, targetPeerId);
+      }
+
+      const start = i * chunkSize;
+      const end = Math.min(start + chunkSize, item.blob.size);
+      const sliceBlob = item.blob.slice(start, end);
+      const sliceBuffer = await sliceBlob.arrayBuffer();
+
+      if (dc.bufferedAmount > 256 * 1024) {
+        await new Promise(resolve => {
+          const onLow = () => {
+            dc.removeEventListener('bufferedamountlow', onLow);
+            resolve();
+          };
+          dc.bufferedAmountLowThreshold = 64 * 1024;
+          dc.addEventListener('bufferedamountlow', onLow);
+          setTimeout(resolve, 300);
+        });
+      }
+
+      const packetData = new Uint8Array(4 + sliceBuffer.byteLength);
+      const headerView = new DataView(packetData.buffer);
+      headerView.setUint32(0, i, true);
+      packetData.set(new Uint8Array(sliceBuffer), 4);
+
+      try {
+        dc.send(packetData.buffer);
+      } catch (err) {
+        return this.streamAttachmentBinary(item, targetPeerId);
+      }
+
+      const percent = Math.round(((i + 1) / totalChunks) * 100);
+      if (this.onTransferProgress && (i % 8 === 0 || i === totalChunks - 1)) {
+        this.onTransferProgress({
+          attachmentId: item.id,
+          name: item.name,
+          percent: percent,
+          type: 'upload',
+          mode: 'p2p'
+        });
+      }
+    }
+
+    try {
+      dc.send(JSON.stringify({ type: 'P2P_FILE_END', attachmentId: item.id }));
+    } catch (e) {}
   }
 
   notifyCursorsUpdate() {

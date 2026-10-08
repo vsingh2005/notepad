@@ -23,15 +23,18 @@ Ringo's Notepad syncs automatically in real time across any browser and device: 
 - **Side-by-Side Mode by Default**:
   - The site opens in **Side-by-Side** view by default, displaying both the **Link Collector** and **Blank Notepad** on screen simultaneously for seamless typing and link management.
 - **Dedicated Attachments & Media Page**:
-  - Separate **Attachments** tab at the top (kept distinct from the side-by-side notepad view) for uploading and organizing pictures, videos, audio clips, and documents.
+  - Separate **Attachments** tab for uploading and organizing pictures, videos, audio clips, and documents.
   - **Drag & Drop Anywhere**: Drag files from your computer directly onto the window or dropzone to upload.
   - **Clipboard Paste**: Paste screenshots or copied images (<kbd>Cmd/Ctrl + V</kbd>) directly into attachments.
-  - **Size Limit Protection**: Clearly stated **75 MB** per-file size limit (optimized for modern 48MP iPhone photos, HEIC, ProRAW, and media clips) with real-time validation.
-  - **Cross-Device Attachment Sync & IndexedDB Storage**: Media files sync across all devices via retained MQTT manifests & chunked P2P streaming, stored securely and permanently in browser IndexedDB.
+  - **WebRTC LAN P2P Transfer (Up to 500 MB)**: High-speed direct peer-to-peer streaming via WebRTC DataChannels supporting large media up to **500 MB** directly between devices.
+  - **2-Device Requirement Notification**: Seamlessly notifies users that at least 2 devices must have the Attachments section open for direct peer-to-peer file transfer.
+  - **Fail-Safe Fallback**: Automatic failover to 16 KB paced MQTT chunked transport if WebRTC is unavailable.
   - **Media Previews & Lightbox**: Fullscreen lightbox player for pictures and videos, audio playback controls, original file download, and customizable captions/notes.
 - **Blank Typable Sheet**:
   - Switch anytime to **Blank Notepad** for freeform, collaborative text editing with debounced cloud persistence and cursor preservation.
-  - Leafy pastel green color palette, responsive paper canvas, custom rulings (Blank, Lined, Grid, Dot Matrix), and multiple themes (Paper Light, Dark Moss, Warm Sepia, Cyber Neon).
+  - **Custom Paper Rulings**: Blank Sheet, Lined Paper, Grid Pattern, Dot Matrix, and **Translucent Glass** (silky frosted glass letting living nature ambience shine through without sacrificing contrast or readability).
+  - **Rich Typography Choices**: Clean Sans, Developer Mono, Editorial Serif, Cozy Script (handwritten), Modern Outfit, Typewriter Slab, and Comfort Dyslexic.
+  - **Curated Themes**: Isometra Ember, Paper Light, Dark Slate, Warm Sepia, Cyber Neon.
 - **Living Nature Ambience**:
   - Built-in soothing animated backdrop with drifting botanical leaves, glowing ambient particles, and soft sunlight rays.
   - Active automatically on page load with an optional toggle button.

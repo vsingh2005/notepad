@@ -9,8 +9,8 @@
   <link rel="apple-touch-icon" href="ARES.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Isometra:wght@400;600;700;800;900&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=2.4.2">
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Comic+Neue:wght@400;700&family=Isometra:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Outfit:wght@400;500;600;700&family=Roboto+Slab:wght@400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css?v=2.5.0">
 </head>
 <body class="view-split" data-ruling="dots">
 
@@ -82,7 +82,7 @@
 
     <!-- Action Buttons -->
     <div class="header-actions">
-      <button class="btn" id="btn-header-attach" title="Attach pictures, videos, or files (Max 75 MB • iPhone 48MP supported)">
+      <button class="btn" id="btn-header-attach" title="Attach pictures, videos, or files (Max 500 MB • WebRTC P2P)">
         <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
         <span>Attach</span>
       </button>
@@ -130,8 +130,12 @@
               <span class="popover-label">Typography:</span>
               <select id="select-font-popover" class="custom-select custom-select-sm">
                 <option value="sans">Clean Sans</option>
-                <option value="mono">Monospace</option>
+                <option value="mono">Developer Mono</option>
                 <option value="serif">Editorial Serif</option>
+                <option value="handwriting">Cozy Script</option>
+                <option value="outfit">Modern Outfit</option>
+                <option value="slab">Typewriter Slab</option>
+                <option value="dyslexic">Comfort Dyslexic</option>
               </select>
             </div>
             <div class="popover-row" style="margin-top: 6px;">
@@ -141,6 +145,7 @@
                 <option value="lined">Lined Paper</option>
                 <option value="grid">Grid Pattern</option>
                 <option value="dots">Dot Matrix</option>
+                <option value="translucent">Translucent Glass</option>
               </select>
             </div>
           </div>
@@ -175,8 +180,12 @@
       <!-- Font Switcher -->
       <select id="select-font" class="custom-select" title="Typography">
         <option value="sans" selected>Clean Sans</option>
-        <option value="mono">Monospace</option>
+        <option value="mono">Developer Mono</option>
         <option value="serif">Editorial Serif</option>
+        <option value="handwriting">Cozy Script</option>
+        <option value="outfit">Modern Outfit</option>
+        <option value="slab">Typewriter Slab</option>
+        <option value="dyslexic">Comfort Dyslexic</option>
       </select>
 
       <!-- Paper Ruling Switcher -->
@@ -185,6 +194,7 @@
         <option value="lined">Lined Paper</option>
         <option value="grid">Grid Pattern</option>
         <option value="dots" selected>Dot Matrix</option>
+        <option value="translucent">Translucent Glass</option>
       </select>
     </div>
   </section>
@@ -325,7 +335,7 @@
               <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
               <span>Attached Media</span>
               <span id="attachments-title-count"></span>
-              <span class="domain-badge badge-image" title="Pristine full resolution">Full Quality &bull; Up to 75 MB</span>
+              <span class="domain-badge badge-image" title="Pristine full resolution">Full Quality &bull; Up to 500 MB (WebRTC P2P)</span>
             </div>
 
             <!-- Filter Pills -->
@@ -345,7 +355,7 @@
             </div>
 
             <div class="link-list-actions">
-              <button class="btn btn-sm btn-primary" id="btn-upload-attachments" title="Upload files (Max 75 MB)">
+              <button class="btn btn-sm btn-primary" id="btn-upload-attachments" title="Upload files (Max 500 MB)">
                 <svg class="icon" viewBox="0 0 24 24"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path></svg>
                 <span>Add Media</span>
               </button>
@@ -358,6 +368,21 @@
                 <span>Delete All</span>
               </button>
             </div>
+          </div>
+        </div>
+
+        <!-- P2P Requirements Notice Banner -->
+        <div class="p2p-info-banner" id="p2p-info-banner">
+          <div class="p2p-info-icon">
+            <svg class="icon" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"></path></svg>
+          </div>
+          <div class="p2p-info-content">
+            <div class="p2p-info-title">Direct P2P Transfer (Up to 500 MB)</div>
+            <div class="p2p-info-desc">Notice: At least <strong>2 devices must have the site open to the Attachments section</strong> to stream &amp; sync large files directly.</div>
+          </div>
+          <div class="p2p-peer-badge" id="p2p-peer-badge">
+            <span class="p2p-dot" id="p2p-dot"></span>
+            <span id="p2p-badge-text">1 device online</span>
           </div>
         </div>
 
@@ -386,7 +411,8 @@
           <div class="empty-title">Your attachments sheet is empty</div>
           <div class="empty-subtitle">
             Drag & drop pictures, videos, or files anywhere on this sheet, paste screenshots (<kbd class="kbd-shortcut">Cmd/Ctrl + V</kbd>), or click <strong>Add Media</strong> above.<br>
-            Preserves 100% full-resolution 48MP iPhone photos, HEIC, ProRAW, and media up to 75 MB without lossy degradation.
+            Preserves 100% full-resolution 48MP iPhone photos, HEIC, ProRAW, and media up to 500 MB via direct WebRTC device-to-device streaming.<br>
+            <em>(Make sure both devices have the Attachments section open for direct transfer.)</em>
           </div>
         </div>
       </div>
@@ -563,12 +589,12 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Bundled MQTT, Yjs CRDT, Awareness, JSZip, and local QRCode Engine -->
-  <script src="js/sync-bundle.js?v=2.4.2"></script>
+  <script src="js/sync-bundle.js?v=2.5.0"></script>
   <!-- Animated Nature Ambience Engine -->
-  <script src="js/nature.js?v=2.4.2"></script>
+  <script src="js/nature.js?v=2.5.0"></script>
   <!-- Real-Time Sync Engine -->
-  <script src="js/sync.js?v=2.4.2"></script>
+  <script src="js/sync.js?v=2.5.0"></script>
   <!-- UI Controller -->
-  <script src="js/app.js?v=2.4.2"></script>
+  <script src="js/app.js?v=2.5.0"></script>
 </body>
 </html>
