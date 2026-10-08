@@ -138,6 +138,24 @@
   const btnOpenShortcuts = document.getElementById('btn-open-shortcuts');
   const btnCloseShortcuts = document.getElementById('btn-close-shortcuts');
 
+  // Authorship Highlighting & WebCrypto Identity Elements
+  const btnToggleAuthorHighlights = document.getElementById('btn-toggle-author-highlights');
+  const authorHighlightsToggleText = document.getElementById('author-highlights-toggle-text');
+  const authorHighlightsBackdrop = document.getElementById('author-highlights-backdrop');
+  const popoverUserIdentityChip = document.getElementById('popover-user-identity-chip');
+  const popoverUserColorDot = document.getElementById('popover-user-color-dot');
+  const popoverUserTag = document.getElementById('popover-user-tag');
+  const btnOpenIdentityModal = document.getElementById('btn-open-identity-modal');
+  const identityModal = document.getElementById('identity-modal');
+  const btnCloseIdentityModal = document.getElementById('btn-close-identity-modal');
+  const modalIdentityAvatar = document.getElementById('modal-identity-avatar');
+  const modalIdentityTag = document.getElementById('modal-identity-tag');
+  const modalInputUsername = document.getElementById('modal-input-username');
+  const modalBtnSaveUsername = document.getElementById('modal-btn-save-username');
+  const identityQrContainer = document.getElementById('identity-qr-container');
+  const btnCopyIdentityBundle = document.getElementById('btn-copy-identity-bundle');
+  const btnImportIdentityPrompt = document.getElementById('btn-import-identity-prompt');
+
   const toastContainer = document.getElementById('toast-container');
   const readonlyBanner = document.getElementById('readonly-banner');
 
@@ -155,6 +173,11 @@
   let activeNotePageId = 'p_main';
   let objectUrlsToRevoke = new Set();
   let draggedCardId = null;
+  let authorHighlightsEnabled = true;
+  try {
+    const savedAh = localStorage.getItem('ringo_author_highlights');
+    if (savedAh !== null) authorHighlightsEnabled = (savedAh === 'true');
+  } catch (e) {}
 
   // ==========================================
   // Pristine IndexedDB Storage for Attachments
@@ -268,14 +291,41 @@
   // ==========================================
   // Initialization
   // ==========================================
-  function init() {
+  async function init() {
     checkReadOnlyMode();
     loadPreferences();
     setupSyncEngineBindings();
     setupEventListeners();
     loadAttachments();
-    statDeviceName.textContent = window.syncEngine.deviceName;
-    inputMyDeviceName.value = window.syncEngine.deviceName;
+
+    // Initialize WebCrypto Identity & Check QR pairing in URL hash
+    if (window.AuthIdentity) {
+      await window.AuthIdentity.init();
+      updateIdentityUI();
+
+      if (window.location.hash.startsWith('#identity=')) {
+        try {
+          const bundleStr = decodeURIComponent(window.location.hash.slice(10));
+          const imported = await window.AuthIdentity.importIdentityBundle(bundleStr);
+          if (imported) {
+            updateIdentityUI();
+            showToast(`Paired & logged in as ${window.AuthIdentity.currentUser.tag}`);
+            try {
+              history.replaceState(null, '', window.location.pathname + window.location.search);
+            } catch (e) {}
+          }
+        } catch (err) {
+          console.warn('Pairing import error:', err);
+        }
+      }
+    }
+
+    statDeviceName.textContent = (window.AuthIdentity && window.AuthIdentity.currentUser ? window.AuthIdentity.currentUser.username : window.syncEngine.deviceName);
+    inputMyDeviceName.value = (window.AuthIdentity && window.AuthIdentity.currentUser ? window.AuthIdentity.currentUser.username : window.syncEngine.deviceName);
+
+    // Initial author highlights UI state & backdrop
+    updateAuthorHighlightsUI();
+    updateAuthorBackdrop();
 
     // View mode default
     const savedView = localStorage.getItem('ringo_view_mode') || 'split';
@@ -420,6 +470,7 @@
         if (noteEditorMode === 'preview') {
           renderMarkdownPreview(paperTextarea.value);
         }
+        updateAuthorBackdrop();
       }
     };
 
@@ -979,6 +1030,7 @@
     if (noteEditorMode === 'preview') {
       renderMarkdownPreview(currentText);
     }
+    updateAuthorBackdrop();
     const meta = window.syncEngine ? window.syncEngine.getPagesMeta() : [{ id: pageId, title: 'Main Notes' }];
     renderNotePagesTabs(meta);
   }
@@ -1028,13 +1080,108 @@
     });
   }
 
-  function renderMarkdownPreview(markdownText) {
-    if (!paperMarkdownPreview) return;
-    paperMarkdownPreview.innerHTML = parseMarkdownToHtml(markdownText);
+  function hexToRgba(hex, alpha = 0.15) {
+    if (!hex || typeof hex !== 'string' || !hex.startsWith('#')) return `rgba(16, 185, 129, ${alpha})`;
+    let c = hex.replace('#', '');
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    const num = parseInt(c, 16);
+    if (isNaN(num)) return `rgba(16, 185, 129, ${alpha})`;
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
   }
 
-  function parseMarkdownToHtml(src) {
+  function updateAuthorHighlightsUI() {
+    if (!btnToggleAuthorHighlights) return;
+    if (authorHighlightsEnabled) {
+      btnToggleAuthorHighlights.classList.add('active');
+      if (authorHighlightsToggleText) authorHighlightsToggleText.textContent = 'Authors: On';
+    } else {
+      btnToggleAuthorHighlights.classList.remove('active');
+      if (authorHighlightsToggleText) authorHighlightsToggleText.textContent = 'Authors: Off';
+    }
+  }
+
+  function updateAuthorBackdrop() {
+    if (!authorHighlightsBackdrop) return;
+    if (!authorHighlightsEnabled) {
+      authorHighlightsBackdrop.innerHTML = '';
+      return;
+    }
+    const delta = window.syncEngine ? window.syncEngine.getNoteDelta(activeNotePageId) : [];
+    const text = paperTextarea ? paperTextarea.value : '';
+    if (!text) {
+      authorHighlightsBackdrop.innerHTML = '';
+      return;
+    }
+
+    if (!delta || delta.length === 0) {
+      const curUser = (window.AuthIdentity && window.AuthIdentity.currentUser) || {
+        color: '#10b981',
+        tag: '@User#0000',
+        username: 'User'
+      };
+      const bgTint = hexToRgba(curUser.color, 0.16);
+      const borderTint = hexToRgba(curUser.color, 0.45);
+      let html = `<mark class="author-mark" style="--author-color: ${curUser.color}; --author-tint: ${bgTint}; --author-border: ${borderTint};" title="Written by ${escapeHtml(curUser.tag)}">${escapeHtml(text)}</mark>`;
+      if (text.endsWith('\n')) html += '<br>&nbsp;';
+      authorHighlightsBackdrop.innerHTML = html;
+      authorHighlightsBackdrop.scrollTop = paperTextarea.scrollTop;
+      authorHighlightsBackdrop.scrollLeft = paperTextarea.scrollLeft;
+      return;
+    }
+
+    let html = '';
+    for (const op of delta) {
+      if (typeof op.insert !== 'string' || !op.insert) continue;
+      const authorColor = op.attributes?.authorColor || (window.AuthIdentity && window.AuthIdentity.currentUser ? window.AuthIdentity.currentUser.color : '#10b981');
+      const authorTag = op.attributes?.author || (window.AuthIdentity && window.AuthIdentity.currentUser ? window.AuthIdentity.currentUser.tag : '@User#0000');
+      const bgTint = hexToRgba(authorColor, 0.16);
+      const borderTint = hexToRgba(authorColor, 0.45);
+      const chunkHtml = escapeHtml(op.insert);
+      html += `<mark class="author-mark" style="--author-color: ${authorColor}; --author-tint: ${bgTint}; --author-border: ${borderTint};" title="Written by ${escapeHtml(authorTag)}">${chunkHtml}</mark>`;
+    }
+    if (text.endsWith('\n')) html += '<br>&nbsp;';
+    authorHighlightsBackdrop.innerHTML = html;
+    authorHighlightsBackdrop.scrollTop = paperTextarea.scrollTop;
+    authorHighlightsBackdrop.scrollLeft = paperTextarea.scrollLeft;
+  }
+
+  function renderMarkdownPreview(markdownText) {
+    if (!paperMarkdownPreview) return;
+    const delta = window.syncEngine ? window.syncEngine.getNoteDelta(activeNotePageId) : [];
+    paperMarkdownPreview.innerHTML = parseMarkdownToHtml(markdownText, delta);
+  }
+
+  function parseMarkdownToHtml(src, delta = []) {
     if (!src) return '<p style="color:var(--text-subtle);">Nothing in this notebook page yet. Switch to Edit mode to write notes.</p>';
+
+    // Build author line map from delta
+    const lineAuthors = [];
+    const defaultAuthor = (window.AuthIdentity && window.AuthIdentity.currentUser) || {
+      tag: '@User#0000',
+      color: '#10b981',
+      username: 'User'
+    };
+
+    if (delta && delta.length > 0) {
+      let currentLine = 0;
+      for (const op of delta) {
+        if (typeof op.insert !== 'string') continue;
+        const opTag = op.attributes?.author || defaultAuthor.tag;
+        const opColor = op.attributes?.authorColor || defaultAuthor.color;
+        const parts = op.insert.split('\n');
+        for (let i = 0; i < parts.length; i++) {
+          if (!lineAuthors[currentLine]) {
+            lineAuthors[currentLine] = { tag: opTag, color: opColor };
+          }
+          if (i < parts.length - 1) {
+            currentLine++;
+          }
+        }
+      }
+    }
 
     let escaped = escapeHtml(src);
 
@@ -1076,7 +1223,78 @@
     escaped = escaped.replace(/\n\n+/g, '</p><p>');
     escaped = `<p>${escaped}</p>`;
 
+    // If author highlights enabled, wrap top-level paragraphs and blocks with light author styling
+    if (authorHighlightsEnabled) {
+      let blockIdx = 0;
+      escaped = escaped.replace(/<(p|h1|h2|h3|blockquote|pre)([^>]*)>([\s\S]*?)<\/\1>/gi, (match, tag, attrs, inner) => {
+        const author = lineAuthors[blockIdx] || defaultAuthor;
+        blockIdx++;
+        const bgTint = hexToRgba(author.color, 0.12);
+        return `<${tag}${attrs} class="md-author-block" style="--author-color:${author.color};--author-tint:${bgTint};" title="Written by ${escapeHtml(author.tag)}">${inner} <span class="md-author-badge" style="background:${author.color};">${escapeHtml(author.tag)}</span></${tag}>`;
+      });
+    }
+
     return escaped;
+  }
+
+  async function openIdentityModal() {
+    if (!identityModal) return;
+    const curUser = (window.AuthIdentity && window.AuthIdentity.currentUser) || {
+      username: 'User',
+      keyId: '0000',
+      tag: '@User#0000',
+      color: '#10b981'
+    };
+
+    if (modalIdentityAvatar) {
+      modalIdentityAvatar.textContent = (curUser.username || 'U').charAt(0).toUpperCase();
+      modalIdentityAvatar.style.backgroundColor = curUser.color || '#10b981';
+    }
+    if (modalIdentityTag) modalIdentityTag.textContent = curUser.tag;
+    if (modalInputUsername) modalInputUsername.value = curUser.username;
+
+    if (identityQrContainer) {
+      identityQrContainer.innerHTML = '<span style="font-size:12px;color:var(--text-subtle);">Generating pairing QR...</span>';
+      try {
+        const bundle = window.AuthIdentity ? await window.AuthIdentity.exportIdentityBundle() : '';
+        const origin = window.location.origin;
+        const pathname = window.location.pathname;
+        const pairingUrl = `${origin}${pathname}#identity=${encodeURIComponent(bundle)}`;
+
+        if (window.QRCode && window.QRCode.toDataURL) {
+          const qrDataUrl = await window.QRCode.toDataURL(pairingUrl, {
+            width: 170,
+            margin: 2,
+            color: { dark: '#0e1e15', light: '#ffffff' }
+          });
+          identityQrContainer.innerHTML = `<img src="${qrDataUrl}" alt="Pairing QR Code" style="width:170px;height:170px;display:block;" />`;
+        } else {
+          identityQrContainer.innerHTML = `<div style="font-size:11px;word-break:break-all;color:var(--text-subtle);">${escapeHtml(pairingUrl)}</div>`;
+        }
+      } catch (e) {
+        console.warn('QR error:', e);
+        identityQrContainer.innerHTML = '<span style="font-size:12px;color:var(--text-subtle);">Unable to generate QR</span>';
+      }
+    }
+
+    identityModal.style.display = 'flex';
+  }
+
+  function closeIdentityModal() {
+    if (identityModal) identityModal.style.display = 'none';
+  }
+
+  function updateIdentityUI() {
+    const curUser = (window.AuthIdentity && window.AuthIdentity.currentUser) || {
+      username: 'User',
+      keyId: '0000',
+      tag: '@User#0000',
+      color: '#10b981'
+    };
+    if (popoverUserTag) popoverUserTag.textContent = curUser.tag;
+    if (popoverUserColorDot) popoverUserColorDot.style.backgroundColor = curUser.color;
+    if (statDeviceName) statDeviceName.textContent = curUser.username;
+    if (inputMyDeviceName) inputMyDeviceName.value = curUser.username;
   }
 
   function renderPeerAvatars(peers) {
@@ -1834,7 +2052,15 @@
       const text = paperTextarea.value;
       window.syncEngine.setNoteText(text, activeNotePageId);
       updateTextStats(text);
+      updateAuthorBackdrop();
       window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
+    });
+
+    paperTextarea.addEventListener('scroll', () => {
+      if (authorHighlightsBackdrop) {
+        authorHighlightsBackdrop.scrollTop = paperTextarea.scrollTop;
+        authorHighlightsBackdrop.scrollLeft = paperTextarea.scrollLeft;
+      }
     });
 
     paperTextarea.addEventListener('selectionchange', () => {
@@ -1845,6 +2071,20 @@
       window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
     });
 
+    // Toggle Author Highlighting button
+    if (btnToggleAuthorHighlights) {
+      btnToggleAuthorHighlights.addEventListener('click', () => {
+        authorHighlightsEnabled = !authorHighlightsEnabled;
+        try { localStorage.setItem('ringo_author_highlights', String(authorHighlightsEnabled)); } catch (e) {}
+        updateAuthorHighlightsUI();
+        updateAuthorBackdrop();
+        if (noteEditorMode === 'preview') {
+          renderMarkdownPreview(paperTextarea.value);
+        }
+        showToast(authorHighlightsEnabled ? 'Author highlights on' : 'Author highlights off');
+      });
+    }
+
     // 5. Notes Mode Toggle (Edit vs Markdown Preview)
     if (btnModeEdit) {
       btnModeEdit.addEventListener('click', () => {
@@ -1853,6 +2093,7 @@
         btnModePreview.classList.remove('active');
         paperTextarea.style.display = 'block';
         paperMarkdownPreview.style.display = 'none';
+        updateAuthorBackdrop();
         paperTextarea.focus();
       });
     }
@@ -2149,12 +2390,76 @@
     });
 
     if (btnSaveDeviceName) {
-      btnSaveDeviceName.addEventListener('click', () => {
+      btnSaveDeviceName.addEventListener('click', async () => {
         const val = inputMyDeviceName.value.trim();
         if (val) {
+          if (window.AuthIdentity) {
+            await window.AuthIdentity.setUsername(val);
+          }
           window.syncEngine.setDeviceName(val);
-          statDeviceName.textContent = val;
-          showToast('Device name saved');
+          updateIdentityUI();
+          updateAuthorBackdrop();
+          showToast('Device handle saved');
+        }
+      });
+    }
+
+    if (btnOpenIdentityModal) {
+      btnOpenIdentityModal.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (connectionPopover) connectionPopover.classList.remove('active');
+        openIdentityModal();
+      });
+    }
+
+    if (btnCloseIdentityModal) btnCloseIdentityModal.addEventListener('click', closeIdentityModal);
+    if (identityModal) {
+      identityModal.addEventListener('click', (e) => {
+        if (e.target === identityModal) closeIdentityModal();
+      });
+    }
+
+    if (modalBtnSaveUsername) {
+      modalBtnSaveUsername.addEventListener('click', async () => {
+        const val = modalInputUsername.value.trim();
+        if (val && window.AuthIdentity) {
+          await window.AuthIdentity.setUsername(val);
+          updateIdentityUI();
+          if (modalIdentityTag) modalIdentityTag.textContent = window.AuthIdentity.currentUser.tag;
+          if (modalIdentityAvatar) modalIdentityAvatar.textContent = val.charAt(0).toUpperCase();
+          updateAuthorBackdrop();
+          showToast(`Handle updated to ${window.AuthIdentity.currentUser.tag}`);
+        }
+      });
+    }
+
+    if (btnCopyIdentityBundle) {
+      btnCopyIdentityBundle.addEventListener('click', async () => {
+        if (!window.AuthIdentity) return;
+        const bundle = await window.AuthIdentity.exportIdentityBundle();
+        if (bundle) {
+          navigator.clipboard.writeText(bundle).then(() => {
+            btnCopyIdentityBundle.textContent = 'Copied!';
+            setTimeout(() => { btnCopyIdentityBundle.textContent = 'Copy Key Bundle'; }, 2000);
+            showToast('Key bundle copied');
+          });
+        }
+      });
+    }
+
+    if (btnImportIdentityPrompt) {
+      btnImportIdentityPrompt.addEventListener('click', async () => {
+        const raw = prompt('Paste your copied key bundle string:');
+        if (raw && window.AuthIdentity) {
+          const success = await window.AuthIdentity.importIdentityBundle(raw.trim());
+          if (success) {
+            updateIdentityUI();
+            closeIdentityModal();
+            updateAuthorBackdrop();
+            showToast(`Switched identity to ${window.AuthIdentity.currentUser.tag}`);
+          } else {
+            showToast('Invalid key bundle');
+          }
         }
       });
     }

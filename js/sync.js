@@ -107,7 +107,7 @@ class SyncEngine {
     else if (ua.includes('CrOS')) os = 'Chromebook';
     else if (ua.includes('Linux')) os = 'Linux';
 
-    let savedName = localStorage.getItem('ringo_device_name');
+    let savedName = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.username) || localStorage.getItem('ringo_device_name');
     if (!savedName) {
       savedName = `${os} (${Math.floor(100 + Math.random() * 900)})`;
       try { localStorage.setItem('ringo_device_name', savedName); } catch (e) {}
@@ -117,15 +117,20 @@ class SyncEngine {
       '#10b981', '#0ea5e9', '#8b5cf6', '#f59e0b',
       '#ec4899', '#06b6d4', '#14b8a6', '#6366f1'
     ];
-    let savedColor = localStorage.getItem('ringo_device_color');
+    let savedColor = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.color) || localStorage.getItem('ringo_device_color');
     if (!savedColor || !colors.includes(savedColor)) {
       savedColor = colors[Math.floor(Math.random() * colors.length)];
       try { localStorage.setItem('ringo_device_color', savedColor); } catch (e) {}
     }
 
+    const tag = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.tag) || `@${savedName}#${savedId.slice(-4).toUpperCase()}`;
+    const keyId = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.keyId) || savedId.slice(-4).toUpperCase();
+
     return {
       id: savedId,
       name: savedName,
+      tag: tag,
+      keyId: keyId,
       os: os,
       color: savedColor
     };
@@ -151,11 +156,24 @@ class SyncEngine {
     this.deviceInfo.name = trimmed;
     try { localStorage.setItem('ringo_device_name', trimmed); } catch (e) {}
 
+    if (window.AuthIdentity && typeof window.AuthIdentity.setUsername === 'function') {
+      window.AuthIdentity.setUsername(trimmed);
+    }
+
+    const tag = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.tag) || `@${trimmed}#${this.deviceId.slice(-4).toUpperCase()}`;
+    const keyId = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.keyId) || this.deviceId.slice(-4).toUpperCase();
+
+    this.deviceInfo.tag = tag;
+    this.deviceInfo.keyId = keyId;
+
     this.awareness.setLocalStateField('user', {
       id: this.deviceId,
       name: this.deviceName,
+      tag: tag,
+      keyId: keyId,
       os: this.deviceInfo.os,
-      color: this.deviceColor
+      color: this.deviceColor,
+      isVerified: true
     });
     this.broadcastAwareness();
     this.notifyPeersUpdate();
@@ -277,12 +295,18 @@ class SyncEngine {
   // ==========================================
 
   setupAwareness() {
+    const tag = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.tag) || `@${this.deviceName}#${this.deviceId.slice(-4).toUpperCase()}`;
+    const keyId = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.keyId) || this.deviceId.slice(-4).toUpperCase();
+
     this.awareness.setLocalState({
       user: {
         id: this.deviceId,
         name: this.deviceName,
+        tag: tag,
+        keyId: keyId,
         os: this.deviceInfo.os,
-        color: this.deviceColor
+        color: this.deviceColor,
+        isVerified: true
       },
       cursor: null,
       isTyping: false,
@@ -307,6 +331,22 @@ class SyncEngine {
         setTimeout(() => this.requestMissingAttachments(), 800);
       }
     });
+  }
+
+  updateLocalAwarenessState() {
+    const tag = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.tag) || `@${this.deviceName}#${this.deviceId.slice(-4).toUpperCase()}`;
+    const keyId = (window.AuthIdentity && window.AuthIdentity.currentUser && window.AuthIdentity.currentUser.keyId) || this.deviceId.slice(-4).toUpperCase();
+    this.awareness.setLocalStateField('user', {
+      id: this.deviceId,
+      name: this.deviceName,
+      tag: tag,
+      keyId: keyId,
+      os: this.deviceInfo.os,
+      color: this.deviceColor,
+      isVerified: true
+    });
+    this.broadcastAwareness();
+    this.notifyPeersUpdate();
   }
 
   setLocalCursor(selectionStart, selectionEnd) {
@@ -695,11 +735,33 @@ class SyncEngine {
       }
       const insertStr = newText.substring(commonStart, newText.length - commonEnd);
       if (insertStr.length > 0) {
-        yText.insert(commonStart, insertStr);
+        const authorInfo = (window.AuthIdentity && window.AuthIdentity.currentUser) ? {
+          author: window.AuthIdentity.currentUser.tag,
+          authorName: window.AuthIdentity.currentUser.username,
+          authorColor: window.AuthIdentity.currentUser.color,
+          authorKey: window.AuthIdentity.currentUser.keyId
+        } : {
+          author: this.deviceInfo?.tag || `@${this.deviceName}`,
+          authorName: this.deviceName,
+          authorColor: this.deviceColor,
+          authorKey: this.deviceId
+        };
+        yText.insert(commonStart, insertStr, authorInfo);
       }
     }, 'local_textarea');
 
     this.setLocalTyping(true);
+  }
+
+  getNoteDelta(pageId = this.activePageId) {
+    const yText = this.yNotesPages.get(pageId);
+    if (!yText || typeof yText.toDelta !== 'function') return [];
+    try {
+      return yText.toDelta();
+    } catch (e) {
+      console.warn('[SyncEngine] toDelta error:', e);
+      return [];
+    }
   }
 
   // ==========================================

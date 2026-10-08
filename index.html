@@ -64,10 +64,20 @@
             <span class="popover-value" id="popover-time-val">Just now</span>
           </div>
           <div class="popover-divider"></div>
+          <div class="popover-identity-badge-row">
+            <div class="popover-user-badge" id="popover-user-identity-chip">
+              <span class="user-badge-dot" id="popover-user-color-dot"></span>
+              <span class="user-badge-tag" id="popover-user-tag">@User#0000</span>
+              <span class="user-badge-verified" title="Cryptographically verified ECDSA P-256 Key">Key ✓</span>
+            </div>
+            <button class="btn btn-xs btn-outline" id="btn-open-identity-modal" title="View cryptographic key, cached login, or pair phone via QR">
+              <span>Pair / Keys</span>
+            </button>
+          </div>
           <div class="popover-device-rename">
-            <label for="input-my-device-name" class="popover-label">Your Device Name:</label>
+            <label for="input-my-device-name" class="popover-label">Your Device Handle:</label>
             <div class="rename-input-row">
-              <input type="text" id="input-my-device-name" class="rename-input" placeholder="Device name..." />
+              <input type="text" id="input-my-device-name" class="rename-input" placeholder="Device handle..." />
               <button class="btn btn-sm btn-primary" id="btn-save-device-name">Save</button>
             </div>
           </div>
@@ -304,6 +314,12 @@
             </button>
           </div>
 
+          <!-- Authorship Highlighting Toggle -->
+          <button type="button" class="notes-author-toggle-btn active" id="btn-toggle-author-highlights" title="Lightly highlight text by who wrote it">
+            <svg class="icon" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+            <span id="author-highlights-toggle-text">Authors: On</span>
+          </button>
+
           <div class="typing-indicator" id="typing-indicator" style="display: none;">
             <span class="typing-dot"></span>
             <span class="typing-text" id="typing-text">Someone is typing...</span>
@@ -314,13 +330,16 @@
           </div>
         </div>
 
-        <div class="notepad-editor-container">
-          <textarea 
-            id="paper-textarea" 
-            class="paper-textarea" 
-            placeholder="Start typing your notes freely here... Keystrokes sync automatically across any browser and device in real time with Yjs CRDT."
-            spellcheck="false"
-          ></textarea>
+        <div class="notepad-editor-container" id="notepad-editor-container">
+          <div class="notepad-editor-wrap">
+            <div id="author-highlights-backdrop" class="author-highlights-backdrop" aria-hidden="true"></div>
+            <textarea 
+              id="paper-textarea" 
+              class="paper-textarea" 
+              placeholder="Start typing your notes freely here... Keystrokes sync automatically across any browser and device in real time with Yjs CRDT."
+              spellcheck="false"
+            ></textarea>
+          </div>
           <div id="paper-markdown-preview" class="paper-markdown-preview" style="display: none;"></div>
           <!-- Remote Cursors Overlay Container -->
           <div id="remote-cursors-layer" class="remote-cursors-layer"></div>
@@ -563,6 +582,51 @@
     </div>
   </div>
 
+  <!-- Identity & Cryptographic Keys Modal -->
+  <div class="modal-overlay" id="identity-modal" style="display: none;">
+    <div class="modal-dialog identity-modal-dialog" style="max-width: 440px;">
+      <div class="modal-header">
+        <div class="modal-title" style="display: flex; align-items: center; gap: 8px;">
+          <svg class="icon" viewBox="0 0 24 24" style="color: var(--primary);"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          <span>Cryptographic Identity</span>
+        </div>
+        <button class="btn-close-modal" id="btn-close-identity-modal" aria-label="Close dialog">
+          <svg class="icon" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+        </button>
+      </div>
+      <div class="identity-modal-body">
+        <div class="identity-profile-banner">
+          <div class="identity-avatar-badge" id="modal-identity-avatar">U</div>
+          <div class="identity-profile-info">
+            <div class="identity-tag-name" id="modal-identity-tag">@User#0000</div>
+            <div class="identity-sub-text">
+              <span class="identity-status-pill">ECDSA P-256 Verified</span>
+              <span class="identity-cached-pill">0-Click Cached Login</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="identity-section" style="margin-top: 14px;">
+          <label class="identity-section-label" for="modal-input-username">Your Unique Handle:</label>
+          <div class="rename-input-row">
+            <input type="text" id="modal-input-username" class="rename-input" placeholder="Handle..." />
+            <button class="btn btn-sm btn-primary" id="modal-btn-save-username">Update Handle</button>
+          </div>
+        </div>
+
+        <div class="identity-qr-section">
+          <div class="identity-qr-title">Pair with Phone or Tablet</div>
+          <div class="identity-qr-desc">Scan with your phone camera to transfer your cryptographic identity and notes access instantly:</div>
+          <div class="identity-qr-container" id="identity-qr-container"></div>
+          <div class="identity-qr-footer">
+            <button class="btn btn-sm btn-outline" id="btn-copy-identity-bundle" title="Copy encrypted cryptographic key bundle">Copy Key Bundle</button>
+            <button class="btn btn-sm btn-outline" id="btn-import-identity-prompt" title="Import an existing key bundle">Import Key</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Keyboard Shortcuts Help Modal -->
   <div class="modal-overlay" id="shortcuts-modal">
     <div class="modal-dialog" style="max-width: 420px;">
@@ -590,6 +654,8 @@
 
   <!-- Bundled MQTT, Yjs CRDT, Awareness, JSZip, and local QRCode Engine -->
   <script src="js/sync-bundle.js?v=2.5.0"></script>
+  <!-- WebCrypto Public-Key Identity & Cached Login Manager -->
+  <script src="js/auth-identity.js?v=2.5.0"></script>
   <!-- Animated Nature Ambience Engine -->
   <script src="js/nature.js?v=2.5.0"></script>
   <!-- Real-Time Sync Engine -->
