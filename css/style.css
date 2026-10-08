@@ -867,7 +867,7 @@ body.view-split .paper-footer-bar {
 }
 
 .settings-container {
-  display: flex;
+  display: none; /* Hidden on mobile; desktop layout explicitly enables it in the left sidebar */
   flex-direction: column;
   gap: 12px;
   padding-top: 20px;
@@ -1822,21 +1822,10 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
     color: #ffffff;
   }
 
-  /* Customizers popover tray on mobile */
+  /* Settings & appearance menu: exclusively uses dedicated #theme-popover on mobile */
+  .settings-container,
   .canvas-customizers {
-    display: none;
-    width: 100%;
-    margin-top: 4px;
-    padding: 10px 12px;
-    background: var(--bg-paper);
-    border: 1px solid var(--border-subtle);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-md);
-    gap: 8px;
-  }
-
-  .canvas-customizers.active {
-    display: flex !important;
+    display: none !important;
   }
 
   .custom-select {
@@ -2832,6 +2821,24 @@ body.view-attachments .attachments-view {
   color: var(--text-main);
 }
 
+@media (max-width: 899px) {
+  .settings-container,
+  .canvas-customizers {
+    display: none !important;
+  }
+
+  .theme-popover {
+    position: fixed !important;
+    top: 56px !important;
+    right: 12px !important;
+    left: auto !important;
+    width: calc(100vw - 24px) !important;
+    max-width: 320px !important;
+    z-index: 1000 !important;
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4), 0 0 0 1px var(--border-subtle) !important;
+  }
+}
+
 @media (max-width: 768px) {
   .connection-popover {
     position: fixed !important;
@@ -2853,12 +2860,12 @@ body.view-attachments .attachments-view {
 
 @media (max-width: 480px) {
   .theme-popover {
-    position: fixed;
-    top: 60px;
-    right: 12px;
-    left: auto;
-    width: calc(100vw - 24px);
-    max-width: 300px;
+    position: fixed !important;
+    top: 56px !important;
+    right: 8px !important;
+    left: auto !important;
+    width: calc(100vw - 16px) !important;
+    max-width: 310px !important;
   }
 }
 

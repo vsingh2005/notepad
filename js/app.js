@@ -1783,7 +1783,7 @@
         btnToggleCustomizers.classList.toggle('active', willBeActive);
 
         if (canvasCustomizers) {
-          canvasCustomizers.classList.toggle('active', willBeActive);
+          canvasCustomizers.classList.remove('active');
         }
       });
     }
@@ -1792,6 +1792,7 @@
       btnCloseThemePopover.addEventListener('click', () => {
         themePopover.classList.remove('active');
         if (btnToggleCustomizers) btnToggleCustomizers.classList.remove('active');
+        if (canvasCustomizers) canvasCustomizers.classList.remove('active');
       });
     }
 
@@ -1804,6 +1805,7 @@
           applyTheme(val, true);
           if (themePopover) themePopover.classList.remove('active');
           if (btnToggleCustomizers) btnToggleCustomizers.classList.remove('active');
+          if (canvasCustomizers) canvasCustomizers.classList.remove('active');
         }
       });
     });
@@ -2093,6 +2095,8 @@
         e.stopPropagation();
         const themePop = document.getElementById('theme-popover');
         if (themePop) themePop.classList.remove('active');
+        if (btnToggleCustomizers) btnToggleCustomizers.classList.remove('active');
+        if (canvasCustomizers) canvasCustomizers.classList.remove('active');
         const willBeActive = !connectionPopover.classList.contains('active');
 
         if (willBeActive && window.innerWidth >= 900) {
@@ -2132,6 +2136,7 @@
       if (themePop && !themePop.contains(e.target) && btnTheme && !btnTheme.contains(e.target)) {
         themePop.classList.remove('active');
         if (btnTheme) btnTheme.classList.remove('active');
+        if (canvasCustomizers) canvasCustomizers.classList.remove('active');
       }
     });
 
