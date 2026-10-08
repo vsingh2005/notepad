@@ -337,8 +337,8 @@ button {
 }
 
 .brand-logo-badge {
-  width: 38px;
-  height: 38px;
+  width: 56px;
+  height: 56px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1742,8 +1742,8 @@ html:not([data-theme]) [data-ruling="translucent"] .paper-textarea {
   }
 
   .brand-logo-badge {
-    width: 30px;
-    height: 30px;
+    width: 42px;
+    height: 42px;
   }
 
   .brand-title {
@@ -4053,8 +4053,8 @@ body.view-attachments .attachments-view {
   }
 
   .brand-logo-badge {
-    width: 36px !important;
-    height: 36px !important;
+    width: 56px !important;
+    height: 56px !important;
   }
 
   .brand-title {
