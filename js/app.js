@@ -356,7 +356,15 @@
   function loadPreferences() {
     const theme = localStorage.getItem('syncpad_theme') || 'ares';
     const font = localStorage.getItem('syncpad_font') || 'sans';
-    const ruling = localStorage.getItem('syncpad_ruling') || 'dots';
+    let ruling = localStorage.getItem('syncpad_ruling');
+    const migratedDefault = localStorage.getItem('syncpad_ruling_default_v2');
+    if (!migratedDefault) {
+      ruling = 'translucent';
+      localStorage.setItem('syncpad_ruling', 'translucent');
+      localStorage.setItem('syncpad_ruling_default_v2', 'true');
+    } else if (!ruling) {
+      ruling = 'translucent';
+    }
     isGroupingByDay = localStorage.getItem('ringo_group_by_day') === 'true';
 
     applyTheme(theme, false);
