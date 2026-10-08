@@ -3283,11 +3283,20 @@ body.view-attachments .attachments-view {
 
 .notes-mode-toggle {
   display: inline-flex;
+  align-items: center;
   background: var(--bg-paper-alt);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   padding: 2px;
   gap: 2px;
+}
+
+.notes-mode-divider {
+  width: 1px;
+  height: 14px;
+  background: var(--border-subtle);
+  margin: 0 3px;
+  opacity: 0.6;
 }
 
 .notes-mode-btn {
@@ -3304,6 +3313,10 @@ body.view-attachments .attachments-view {
   align-items: center;
   gap: 5px;
   transition: var(--transition-smooth);
+}
+
+.notes-mode-btn:hover {
+  color: var(--text-main);
 }
 
 .notes-mode-btn.active {
@@ -4198,11 +4211,8 @@ body.view-attachments .attachments-view {
    ========================================================================== */
 
 .notes-author-toggle-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  border: 1px solid var(--border-subtle);
-  background: var(--bg-paper-alt);
+  border: none;
+  background: transparent;
   color: var(--text-muted);
   padding: 4px 10px;
   border-radius: var(--radius-sm);
@@ -4210,18 +4220,20 @@ body.view-attachments .attachments-view {
   font-weight: 700;
   font-family: inherit;
   cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
   transition: var(--transition-smooth);
 }
 
 .notes-author-toggle-btn:hover {
   color: var(--text-main);
-  border-color: var(--primary);
 }
 
 .notes-author-toggle-btn.active {
-  background: var(--primary-subtle, rgba(16, 185, 129, 0.12));
+  background: var(--bg-paper);
   color: var(--primary);
-  border-color: var(--primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .notepad-editor-wrap {

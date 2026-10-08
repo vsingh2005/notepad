@@ -1096,10 +1096,13 @@
     if (!btnToggleAuthorHighlights) return;
     if (authorHighlightsEnabled) {
       btnToggleAuthorHighlights.classList.add('active');
-      if (authorHighlightsToggleText) authorHighlightsToggleText.textContent = 'Authors: On';
+      btnToggleAuthorHighlights.setAttribute('title', 'Author highlights: On (click to turn off)');
     } else {
       btnToggleAuthorHighlights.classList.remove('active');
-      if (authorHighlightsToggleText) authorHighlightsToggleText.textContent = 'Authors: Off';
+      btnToggleAuthorHighlights.setAttribute('title', 'Author highlights: Off (click to turn on)');
+    }
+    if (authorHighlightsToggleText) {
+      authorHighlightsToggleText.textContent = 'Authors';
     }
   }
 

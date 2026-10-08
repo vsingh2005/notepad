@@ -10,7 +10,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&family=Comic+Neue:wght@400;700&family=Isometra:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;600;700&family=Lora:ital,wght@0,400;0,600;1,400&family=Outfit:wght@400;500;600;700&family=Roboto+Slab:wght@400;600;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="css/style.css?v=2.5.0">
+  <link rel="stylesheet" href="css/style.css?v=2.5.2">
 </head>
 <body class="view-split" data-ruling="translucent">
 
@@ -312,13 +312,12 @@
               <svg class="icon" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path><circle cx="12" cy="12" r="3"></circle></svg>
               <span>Markdown</span>
             </button>
+            <span class="notes-mode-divider"></span>
+            <button type="button" class="notes-mode-btn active" id="btn-toggle-author-highlights" title="Author highlights: On (click to toggle)">
+              <svg class="icon" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
+              <span id="author-highlights-toggle-text">Authors</span>
+            </button>
           </div>
-
-          <!-- Authorship Highlighting Toggle -->
-          <button type="button" class="notes-author-toggle-btn active" id="btn-toggle-author-highlights" title="Lightly highlight text by who wrote it">
-            <svg class="icon" viewBox="0 0 24 24" style="width: 13px; height: 13px;"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"/></svg>
-            <span id="author-highlights-toggle-text">Authors: On</span>
-          </button>
 
           <div class="typing-indicator" id="typing-indicator" style="display: none;">
             <span class="typing-dot"></span>
@@ -653,14 +652,14 @@
   <div class="toast-container" id="toast-container"></div>
 
   <!-- Bundled MQTT, Yjs CRDT, Awareness, JSZip, and local QRCode Engine -->
-  <script src="js/sync-bundle.js?v=2.5.0"></script>
+  <script src="js/sync-bundle.js?v=2.5.2"></script>
   <!-- WebCrypto Public-Key Identity & Cached Login Manager -->
-  <script src="js/auth-identity.js?v=2.5.0"></script>
+  <script src="js/auth-identity.js?v=2.5.2"></script>
   <!-- Animated Nature Ambience Engine -->
-  <script src="js/nature.js?v=2.5.0"></script>
+  <script src="js/nature.js?v=2.5.2"></script>
   <!-- Real-Time Sync Engine -->
-  <script src="js/sync.js?v=2.5.0"></script>
+  <script src="js/sync.js?v=2.5.2"></script>
   <!-- UI Controller -->
-  <script src="js/app.js?v=2.5.0"></script>
+  <script src="js/app.js?v=2.5.2"></script>
 </body>
 </html>
