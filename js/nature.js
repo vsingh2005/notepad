@@ -12,6 +12,7 @@ class NatureAmbience {
     if (!this.canvas) return;
     this.ctx = this.canvas.getContext('2d');
     this.animationFrameId = null;
+    this.lastFrameTime = 0;
 
     // Check saved preference or system reduced motion
     const saved = localStorage.getItem('ringo_ambience_active');
@@ -35,11 +36,17 @@ class NatureAmbience {
   init() {
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    document.addEventListener('visibilitychange', () => {
+      cancelAnimationFrame(this.animationFrameId);
+      this.lastFrameTime = 0;
+      if (!document.hidden && this.isActive) this.animate();
+    });
 
     // Observe theme changes to adapt leaf & particle colors
     const observer = new MutationObserver(() => {
       this.theme = document.documentElement.getAttribute('data-theme') || 'ares';
       this.resetPalette();
+      this.backgroundCache = null;
       if (!this.isActive) {
         this.drawStaticBackground();
       }
@@ -50,6 +57,7 @@ class NatureAmbience {
     this.populateElements();
 
     if (this.isActive) {
+      this.lastFrameTime = 0;
       this.animate();
     } else {
       this.drawStaticBackground();
@@ -59,9 +67,11 @@ class NatureAmbience {
   resize() {
     this.width = window.innerWidth;
     this.height = window.innerHeight;
-    this.canvas.width = this.width * (window.devicePixelRatio || 1);
-    this.canvas.height = this.height * (window.devicePixelRatio || 1);
-    this.ctx.scale(window.devicePixelRatio || 1, window.devicePixelRatio || 1);
+    const ratio = Math.min(window.devicePixelRatio || 1, 1.5);
+    this.canvas.width = this.width * ratio;
+    this.canvas.height = this.height * ratio;
+    this.ctx.scale(ratio, ratio);
+    this.backgroundCache = null;
     if (!this.isActive) {
       this.drawStaticBackground();
     }
@@ -190,28 +200,31 @@ class NatureAmbience {
     this.drawSunbeams(config);
   }
 
-  animate() {
-    if (!this.isActive) return;
+  animate(timestamp = performance.now()) {
+    if (!this.isActive || document.hidden) return;
+    this.animationFrameId = requestAnimationFrame(time => this.animate(time));
+    if (this.lastFrameTime && timestamp - this.lastFrameTime < 1000 / 30) return;
+    const step = this.lastFrameTime ? Math.min((timestamp - this.lastFrameTime) / (1000 / 60), 4) : 1;
+    this.lastFrameTime = timestamp;
 
     const config = this.getThemeConfig();
     this.ctx.clearRect(0, 0, this.width, this.height);
 
-    // 1. Nature ambient atmosphere gradient
-    const bgGrad = this.ctx.createLinearGradient(0, 0, this.width, this.height);
-    bgGrad.addColorStop(0, config.bgGradient[0]);
-    bgGrad.addColorStop(0.5, config.bgGradient[1]);
-    bgGrad.addColorStop(1, config.bgGradient[2]);
-    this.ctx.fillStyle = bgGrad;
-    this.ctx.fillRect(0, 0, this.width, this.height);
-
-    // 2. Soft sunlight rays
-    this.drawSunbeams(config);
+    // Cache the static atmosphere; only moving elements need to be painted each frame.
+    if (!this.backgroundCache) {
+      this.drawStaticBackground();
+      this.backgroundCache = document.createElement('canvas');
+      this.backgroundCache.width = this.canvas.width;
+      this.backgroundCache.height = this.canvas.height;
+      this.backgroundCache.getContext('2d').drawImage(this.canvas, 0, 0);
+    }
+    this.ctx.drawImage(this.backgroundCache, 0, 0, this.width, this.height);
 
     // 3. Render and update glowing pollen / fireflies
     this.particles.forEach(p => {
-      p.y += p.speedY;
-      p.x += p.speedX + Math.sin(p.pulse) * 0.35;
-      p.pulse += p.pulseSpeed;
+      p.y += p.speedY * step;
+      p.x += (p.speedX + Math.sin(p.pulse) * 0.35) * step;
+      p.pulse += p.pulseSpeed * step;
 
       const currentAlpha = Math.max(0.1, Math.min(1, Math.sin(p.pulse) * p.alpha + 0.2));
       
@@ -238,10 +251,10 @@ class NatureAmbience {
 
     // 4. Render and update drifting organic leaves
     this.leaves.forEach(leaf => {
-      leaf.y += leaf.speedY;
-      leaf.x += leaf.speedX + Math.sin(leaf.swayOffset) * 0.7;
-      leaf.swayOffset += leaf.swaySpeed;
-      leaf.rotation += leaf.rotationSpeed;
+      leaf.y += leaf.speedY * step;
+      leaf.x += (leaf.speedX + Math.sin(leaf.swayOffset) * 0.7) * step;
+      leaf.swayOffset += leaf.swaySpeed * step;
+      leaf.rotation += leaf.rotationSpeed * step;
 
       this.ctx.save();
       this.ctx.translate(leaf.x, leaf.y);
@@ -291,7 +304,7 @@ class NatureAmbience {
       if (leaf.x > this.width + 40) leaf.x = -40;
     });
 
-    this.animationFrameId = requestAnimationFrame(() => this.animate());
+
   }
 
   toggle() {
@@ -301,6 +314,7 @@ class NatureAmbience {
     } catch (e) {}
 
     if (this.isActive) {
+      this.lastFrameTime = 0;
       this.animate();
     } else {
       cancelAnimationFrame(this.animationFrameId);

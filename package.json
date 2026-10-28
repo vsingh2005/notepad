@@ -4,8 +4,8 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "build": "esbuild src/bundle.js --bundle --minify --platform=browser --target=es2020 --outfile=js/sync-bundle.js",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "esbuild src/bundle.js --bundle --minify --platform=browser --target=es2020 --outfile=js/sync-bundle.js && esbuild src/zip.js --bundle --minify --platform=browser --target=es2020 --outfile=js/zip-bundle.js && esbuild src/qrcode.js --bundle --minify --platform=browser --target=es2020 --outfile=js/qrcode-bundle.js",
+    "test": "node --test tests/*.test.cjs"
   },
   "keywords": [],
   "author": "",

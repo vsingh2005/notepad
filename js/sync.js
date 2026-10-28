@@ -363,39 +363,33 @@ class SyncEngine {
   }
 
   setLocalCursor(selectionStart, selectionEnd) {
-    if (selectionStart === null || selectionStart === undefined) {
-      this.awareness.setLocalStateField('cursor', null);
-    } else {
-      this.awareness.setLocalStateField('cursor', {
-        index: selectionStart,
-        length: (selectionEnd !== undefined ? selectionEnd : selectionStart) - selectionStart,
-        pageId: this.activePageId
-      });
-    }
-    this.awareness.setLocalStateField('lastActive', Date.now());
-    this.broadcastAwareness();
+    const cursor = selectionStart == null ? null : {
+      index: selectionStart,
+      length: (selectionEnd ?? selectionStart) - selectionStart,
+      pageId: this.activePageId
+    };
+    this.pendingCursor = cursor;
+    if (this.cursorTimer) return;
+    this.cursorTimer = setTimeout(() => {
+      this.cursorTimer = null;
+      const state = this.awareness.getLocalState() || {};
+      if (JSON.stringify(state.cursor) === JSON.stringify(this.pendingCursor)) return;
+      this.awareness.setLocalState({...state, cursor: this.pendingCursor, lastActive: Date.now()});
+    }, 75);
   }
 
   setLocalTyping(isTyping) {
-    this.awareness.setLocalStateField('isTyping', !!isTyping);
-    this.awareness.setLocalStateField('lastActive', Date.now());
-    this.broadcastAwareness();
-
-    if (isTyping) {
-      clearTimeout(this.typingTimeout);
-      this.typingTimeout = setTimeout(() => {
-        this.awareness.setLocalStateField('isTyping', false);
-        this.broadcastAwareness();
-      }, 1500);
+    const state = this.awareness.getLocalState() || {};
+    if (state.isTyping !== !!isTyping) {
+      this.awareness.setLocalState({...state, isTyping: !!isTyping, lastActive: Date.now()});
     }
+    clearTimeout(this.typingTimeout);
+    if (isTyping) this.typingTimeout = setTimeout(() => this.setLocalTyping(false), 1500);
   }
 
   broadcastAwareness() {
-    const clients = Array.from(this.awareness.getStates().keys());
-    if (clients.length > 0) {
-      const update = window.awarenessProtocol.encodeAwarenessUpdate(this.awareness, clients);
-      this.publishAwarenessUpdate(update);
-    }
+    const update = window.awarenessProtocol.encodeAwarenessUpdate(this.awareness, [this.doc.clientID]);
+    this.publishAwarenessUpdate(update);
   }
 
   publishAwarenessUpdate(updateUint8) {
@@ -1360,7 +1354,9 @@ class SyncEngine {
 
     this.onlinePeerCount = activePeers.length;
 
-    if (this.onPeersUpdate) {
+    const signature = JSON.stringify([activePeers, typingUsers, this.deviceInfo]);
+    if (this.onPeersUpdate && signature !== this.lastPeersSignature) {
+      this.lastPeersSignature = signature;
       this.onPeersUpdate({
         count: activePeers.length,
         peers: activePeers,

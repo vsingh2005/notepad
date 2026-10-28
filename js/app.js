@@ -4,6 +4,75 @@
  */
 
 (function () {
+
+  function debounce(fn, delay = 125) {
+    let timer;
+    return (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), delay); };
+  }
+
+  function reconcileChildren(parent, nodes) {
+    nodes.forEach((node, index) => {
+      if (parent.children[index] !== node) parent.insertBefore(node, parent.children[index] || null);
+    });
+    while (parent.children.length > nodes.length) parent.lastElementChild.remove();
+  }
+
+  const linkCardCache = new Map();
+  const attachmentCardCache = new Map();
+  const attachmentUrls = new Map();
+  function cachedCard(cache, item, factory) {
+    const signature = JSON.stringify([item, isReadOnlyMode, window.AuthIdentity?.currentUser]);
+    let entry = cache.get(item.id);
+    if (!entry || entry.signature !== signature || entry.blob !== item.blob) {
+      entry = {signature, blob: item.blob, node: factory(item)};
+      cache.set(item.id, entry);
+    }
+    return entry.node;
+  }
+  function pruneCards(cache, items) {
+    const ids = new Set(items.map(item => item.id));
+    for (const id of cache.keys()) if (!ids.has(id)) cache.delete(id);
+  }
+
+  let editorFrame = null;
+  function scheduleEditorDecorations() {
+    if (editorFrame !== null) return;
+    editorFrame = requestAnimationFrame(() => {
+      editorFrame = null;
+      updateTextStats(paperTextarea.value);
+      updateAuthorBackdrop();
+      renderRemoteCursors();
+    });
+  }
+
+  function patchAuthorMarkup(html) {
+    const template = document.createElement('template');
+    template.innerHTML = html;
+    const old = Array.from(authorHighlightsBackdrop.childNodes);
+    const next = Array.from(template.content.childNodes);
+    let prefix = 0;
+    while (prefix < old.length && prefix < next.length && old[prefix].isEqualNode(next[prefix])) prefix++;
+    let suffix = 0;
+    while (suffix < old.length - prefix && suffix < next.length - prefix &&
+           old[old.length - 1 - suffix].isEqualNode(next[next.length - 1 - suffix])) suffix++;
+    for (let i = prefix; i < old.length - suffix; i++) old[i].remove();
+    const anchor = suffix ? old[old.length - suffix] : null;
+    for (let i = prefix; i < next.length - suffix; i++) authorHighlightsBackdrop.insertBefore(next[i], anchor);
+  }
+
+  const loadedFonts = new Set();
+  function loadSelectedFont(key) {
+    const families = {mono: 'JetBrains+Mono:wght@400;600;700', serif: 'Lora:ital,wght@0,400;0,600;1,400',
+      handwriting: 'Caveat:wght@400;600;700', outfit: 'Outfit:wght@400;500;600;700',
+      slab: 'Roboto+Slab:wght@400;600;700', dyslexic: 'Comic+Neue:wght@400;700'};
+    if (!families[key] || loadedFonts.has(key)) return;
+    loadedFonts.add(key);
+    const link = document.createElement('link');
+    link.rel = 'stylesheet';
+    link.href = `https://fonts.googleapis.com/css2?family=${families[key]}&display=swap`;
+    document.head.appendChild(link);
+  }
+
   // SVG Icon Templates (Clean modern vector icons)
   const ICONS = {
     link: `<svg class="icon" viewBox="0 0 24 24"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>`,
@@ -193,7 +262,7 @@
   let isReadOnlyMode = false;
   let noteEditorMode = 'edit'; // edit, preview
   let activeNotePageId = 'p_main';
-  let objectUrlsToRevoke = new Set();
+
   let draggedCardId = null;
   let authorHighlightsEnabled = true;
   try {
@@ -486,6 +555,7 @@
   }
 
   function applyFont(fontKey) {
+    loadSelectedFont(fontKey);
     if (!fontKey) return;
     document.body.style.setProperty('--font-current', getFontFamily(fontKey));
     localStorage.setItem('syncpad_font', fontKey);
@@ -801,7 +871,8 @@
   // ==========================================
   function renderLinks() {
     if (!linkCardsContainer) return;
-    linkCardsContainer.innerHTML = '';
+    const target = {children: [], appendChild(node) { this.children.push(node); }};
+    pruneCards(linkCardCache, currentLinks);
 
     // 1. Filter links
     let filtered = [...currentLinks];
@@ -844,11 +915,11 @@
       linkCardsContainer.style.display = 'flex';
 
       if (isGroupingByDay) {
-        renderGroupedLinks(filtered);
+        renderGroupedLinks(filtered, target);
       } else {
         filtered.forEach(item => {
-          const card = createLinkCardElement(item);
-          linkCardsContainer.appendChild(card);
+          const card = cachedCard(linkCardCache, item, createLinkCardElement);
+          target.appendChild(card);
         });
       }
     }
@@ -858,10 +929,11 @@
     linkCountBadge.textContent = count;
     linkListTitleCount.textContent = count > 0 ? `(${count})` : '';
 
+    reconcileChildren(linkCardsContainer, Array.from(target.children));
     renderActiveTagsList();
   }
 
-  function renderGroupedLinks(links) {
+  function renderGroupedLinks(links, target) {
     const groups = {
       'Today': [],
       'Yesterday': [],
@@ -892,11 +964,11 @@
         const header = document.createElement('div');
         header.className = 'link-group-header';
         header.innerHTML = `<span>${groupName}</span> <span class="group-count">(${items.length})</span>`;
-        linkCardsContainer.appendChild(header);
+        target.appendChild(header);
 
         items.forEach(item => {
-          const card = createLinkCardElement(item);
-          linkCardsContainer.appendChild(card);
+          const card = cachedCard(linkCardCache, item, createLinkCardElement);
+          target.appendChild(card);
         });
       }
     }
@@ -1400,7 +1472,7 @@
       const borderTint = hexToRgba(curUser.color, 0.45);
       let html = `<mark class="author-mark" style="--author-color: ${curUser.color}; --author-tint: ${bgTint}; --author-border: ${borderTint};" title="Written by ${escapeHtml(curUser.tag)}">${escapeHtml(text)}</mark>`;
       if (text.endsWith('\n')) html += '<br>&nbsp;';
-      authorHighlightsBackdrop.innerHTML = html;
+      patchAuthorMarkup(html);
       authorHighlightsBackdrop.scrollTop = paperTextarea.scrollTop;
       authorHighlightsBackdrop.scrollLeft = paperTextarea.scrollLeft;
       return;
@@ -1417,7 +1489,7 @@
       html += `<mark class="author-mark" style="--author-color: ${authorColor}; --author-tint: ${bgTint}; --author-border: ${borderTint};" title="Written by ${escapeHtml(authorTag)}">${chunkHtml}</mark>`;
     }
     if (text.endsWith('\n')) html += '<br>&nbsp;';
-    authorHighlightsBackdrop.innerHTML = html;
+    patchAuthorMarkup(html);
     authorHighlightsBackdrop.scrollTop = paperTextarea.scrollTop;
     authorHighlightsBackdrop.scrollLeft = paperTextarea.scrollLeft;
   }
@@ -1535,6 +1607,7 @@
         const pathname = window.location.pathname;
         const pairingUrl = `${origin}${pathname}#identity=${encodeURIComponent(bundle)}`;
 
+        await window.loadOptionalLibrary('qrcode');
         if (window.QRCode && window.QRCode.toDataURL) {
           const qrDataUrl = await window.QRCode.toDataURL(pairingUrl, {
             width: 170,
@@ -1619,128 +1692,74 @@
     paperTextarea.style.caretColor = curColor;
   }
 
-  function getTextareaCaretCoordinates(textarea, position) {
-    if (!textarea) return { top: 0, left: 0, height: 24 };
-
-    let mirror = document.getElementById('textarea-caret-mirror');
+  const cursorMirrors = new Map();
+  function prepareCursorMeasurement(key, textarea, position, length = 0) {
+    let mirror = cursorMirrors.get(key);
     if (!mirror) {
       mirror = document.createElement('div');
-      mirror.id = 'textarea-caret-mirror';
       mirror.setAttribute('aria-hidden', 'true');
+      mirror.style.cssText = 'position:absolute;top:-99999px;left:-99999px;visibility:hidden;pointer-events:none;white-space:pre-wrap;word-break:break-word;overflow-wrap:break-word;';
       document.body.appendChild(mirror);
+      cursorMirrors.set(key, mirror);
     }
-
-    const computed = window.getComputedStyle(textarea);
-
-    mirror.style.position = 'absolute';
-    mirror.style.top = '-99999px';
-    mirror.style.left = '-99999px';
-    mirror.style.visibility = 'hidden';
-    mirror.style.pointerEvents = 'none';
-    mirror.style.whiteSpace = 'pre-wrap';
-    mirror.style.wordBreak = 'break-word';
-    mirror.style.overflowWrap = 'break-word';
-    mirror.style.boxSizing = computed.boxSizing;
-    mirror.style.width = textarea.clientWidth + 'px';
-    mirror.style.fontFamily = computed.fontFamily;
-    mirror.style.fontSize = computed.fontSize;
-    mirror.style.fontWeight = computed.fontWeight;
-    mirror.style.fontStyle = computed.fontStyle;
-    mirror.style.letterSpacing = computed.letterSpacing;
-    mirror.style.lineHeight = computed.lineHeight;
-    mirror.style.textTransform = computed.textTransform;
-    mirror.style.textAlign = computed.textAlign;
-    mirror.style.direction = computed.direction;
-    mirror.style.paddingTop = computed.paddingTop;
-    mirror.style.paddingRight = computed.paddingRight;
-    mirror.style.paddingBottom = computed.paddingBottom;
-    mirror.style.paddingLeft = computed.paddingLeft;
-    mirror.style.borderTopWidth = computed.borderTopWidth;
-    mirror.style.borderLeftWidth = computed.borderLeftWidth;
+    const computed = frameTextareaStyle;
+    for (const property of ['boxSizing', 'fontFamily', 'fontSize', 'fontWeight', 'fontStyle',
+      'letterSpacing', 'lineHeight', 'textTransform', 'textAlign', 'direction',
+      'paddingTop', 'paddingRight', 'paddingBottom', 'paddingLeft',
+      'borderTopWidth', 'borderRightWidth', 'borderBottomWidth', 'borderLeftWidth', 'tabSize']) {
+      mirror.style[property] = computed[property];
+    }
     mirror.style.borderStyle = 'solid';
-
-    mirror.textContent = '';
-
+    mirror.style.width = frameTextareaWidth + 'px';
     const text = textarea.value || '';
-    const clampedPos = Math.max(0, Math.min(position, text.length));
-    const beforeText = text.substring(0, clampedPos);
-    const afterText = text.substring(clampedPos);
-
-    const spanBefore = document.createElement('span');
-    spanBefore.textContent = beforeText;
-    mirror.appendChild(spanBefore);
-
-    const caretMarker = document.createElement('span');
-    caretMarker.textContent = (!afterText || afterText[0] === '\n') ? '\u200b' : afterText[0];
-    mirror.appendChild(caretMarker);
-
-    if (afterText.length > 1) {
-      const spanAfter = document.createElement('span');
-      spanAfter.textContent = afterText.substring(1);
-      mirror.appendChild(spanAfter);
+    const start = Math.max(0, Math.min(position, text.length));
+    const end = Math.max(start, Math.min(start + length, text.length));
+    const signature = JSON.stringify([text, start, end]);
+    if (mirror._signature !== signature) {
+      mirror._signature = signature;
+      const before = document.createElement('span');
+      before.textContent = text.substring(0, start);
+      const marker = document.createElement('span');
+      marker.textContent = length ? text.substring(start, end) : (text[start] && text[start] !== '\n' ? text[start] : '\u200b');
+      const after = document.createElement('span');
+      after.textContent = text.substring(length ? end : start + (text[start] && text[start] !== '\n' ? 1 : 0));
+      mirror.replaceChildren(before, marker, after);
     }
-
-    const borderTop = parseFloat(computed.borderTopWidth) || 0;
-    const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
-    const fontSize = parseFloat(computed.fontSize) || 16;
-    const lineHeight = parseFloat(computed.lineHeight) || (fontSize * 1.7);
-
-    const top = caretMarker.offsetTop + borderTop - textarea.scrollTop;
-    const left = caretMarker.offsetLeft + borderLeft - textarea.scrollLeft;
-    const height = caretMarker.offsetHeight || lineHeight;
-
-    return {
-      top,
-      left,
-      height: Math.max(height, lineHeight * 0.8)
+    // All mirrors are prepared before any geometry is read.
+    return () => {
+      const marker = mirror.children[1];
+      const borderTop = parseFloat(computed.borderTopWidth) || 0;
+      const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
+      if (!length) return {
+        top: marker.offsetTop + borderTop - textarea.scrollTop,
+        left: marker.offsetLeft + borderLeft - textarea.scrollLeft,
+        height: marker.offsetHeight || parseFloat(computed.lineHeight) || 24
+      };
+      const origin = mirror.getBoundingClientRect();
+      return Array.from(marker.getClientRects(), rect => ({
+        top: rect.top - origin.top + borderTop - textarea.scrollTop,
+        left: rect.left - origin.left + borderLeft - textarea.scrollLeft,
+        width: rect.width, height: rect.height
+      }));
     };
   }
 
-  function getTextareaSelectionRects(textarea, start, end) {
-    if (!textarea || start >= end) return [];
-    let mirror = document.getElementById('textarea-caret-mirror');
-    if (!mirror) {
-      getTextareaCaretCoordinates(textarea, 0);
-      mirror = document.getElementById('textarea-caret-mirror');
-    }
-    if (!mirror) return [];
-
-    const computed = window.getComputedStyle(textarea);
-    mirror.style.width = textarea.clientWidth + 'px';
-    mirror.textContent = '';
-
-    const text = textarea.value || '';
-    const textBefore = text.substring(0, start);
-    const textSelected = text.substring(start, end);
-
-    const spanBefore = document.createElement('span');
-    spanBefore.textContent = textBefore;
-    mirror.appendChild(spanBefore);
-
-    const spanSel = document.createElement('span');
-    spanSel.textContent = textSelected;
-    mirror.appendChild(spanSel);
-
-    const mirrorRect = mirror.getBoundingClientRect();
-    const clientRects = spanSel.getClientRects();
-    const rects = [];
-
-    const borderTop = parseFloat(computed.borderTopWidth) || 0;
-    const borderLeft = parseFloat(computed.borderLeftWidth) || 0;
-
-    for (let i = 0; i < clientRects.length; i++) {
-      const r = clientRects[i];
-      rects.push({
-        top: r.top - mirrorRect.top + borderTop - textarea.scrollTop,
-        left: r.left - mirrorRect.left + borderLeft - textarea.scrollLeft,
-        width: r.width,
-        height: r.height
-      });
-    }
-    return rects;
+  let cursorFrame = null;
+  let frameTextareaStyle = null;
+  let frameTextareaWidth = 0;
+  function renderRemoteCursors(cursors) {
+    if (cursors !== undefined) currentRemoteCursors = cursors || [];
+    if (cursorFrame !== null) return;
+    cursorFrame = requestAnimationFrame(() => {
+      cursorFrame = null;
+      frameTextareaStyle = paperTextarea ? window.getComputedStyle(paperTextarea) : null;
+      frameTextareaWidth = paperTextarea ? paperTextarea.clientWidth : 0;
+      paintRemoteCursors();
+      frameTextareaStyle = null;
+    });
   }
 
-  function renderRemoteCursors(cursors) {
+  function paintRemoteCursors(cursors) {
     if (cursors !== undefined) {
       currentRemoteCursors = cursors || [];
     }
@@ -1748,36 +1767,57 @@
     updateLocalCaretColor();
 
     if (!remoteCursorsLayer) return;
-    remoteCursorsLayer.innerHTML = '';
+    const nextCursors = [];
 
-    if (noteEditorMode === 'preview' || !paperTextarea) return;
+    if (noteEditorMode === 'preview' || !paperTextarea) { remoteCursorsLayer.replaceChildren(); return; }
+
+    const jobs = new Map();
+    const usedMirrors = new Set();
+    currentRemoteCursors.forEach(c => {
+      if (!c?.user || c.cursor?.index == null || (c.cursor.pageId && c.cursor.pageId !== activeNotePageId)) return;
+      const key = String(c.clientId);
+      usedMirrors.add(key);
+      const caret = prepareCursorMeasurement(key, paperTextarea, c.cursor.index);
+      let selection = null;
+      if (c.cursor.length) {
+        const selectionKey = key + ':selection';
+        usedMirrors.add(selectionKey);
+        selection = prepareCursorMeasurement(selectionKey, paperTextarea,
+          Math.min(c.cursor.index, c.cursor.index + c.cursor.length), Math.abs(c.cursor.length));
+      }
+      jobs.set(c.clientId, {caret, selection});
+    });
+    for (const [key, mirror] of cursorMirrors) {
+      if (!usedMirrors.has(key)) { mirror.remove(); cursorMirrors.delete(key); }
+    }
+    const viewportHeight = paperTextarea.clientHeight;
+    const viewportWidth = paperTextarea.clientWidth;
+    const measurements = new Map(Array.from(jobs, ([id, job]) =>
+      [id, {coords: job.caret(), rects: job.selection ? job.selection() : []}]));
 
     currentRemoteCursors.forEach(c => {
       if (!c || !c.user || !c.cursor || c.cursor.index == null) return;
       if (c.cursor.pageId && c.cursor.pageId !== activeNotePageId) return;
 
-      const cursorIndex = Math.max(0, Math.min(c.cursor.index, paperTextarea.value.length));
-      const coords = getTextareaCaretCoordinates(paperTextarea, cursorIndex);
+      const coords = measurements.get(c.clientId).coords;
 
       // Render selection boxes if remote user has highlighted text
       if (c.cursor.length && c.cursor.length !== 0) {
-        const selStart = Math.min(cursorIndex, cursorIndex + c.cursor.length);
-        const selEnd = Math.max(cursorIndex, cursorIndex + c.cursor.length);
-        const rects = getTextareaSelectionRects(paperTextarea, selStart, selEnd);
+        const rects = measurements.get(c.clientId).rects;
         rects.forEach(r => {
-          if (r.top < -30 || r.top > paperTextarea.clientHeight + 30) return;
+          if (r.top < -30 || r.top > viewportHeight + 30) return;
           const selBox = document.createElement('div');
           selBox.className = 'remote-selection-box';
           selBox.style.transform = `translate(${Math.round(r.left)}px, ${Math.round(r.top)}px)`;
           selBox.style.width = `${Math.round(r.width)}px`;
           selBox.style.height = `${Math.round(r.height)}px`;
           selBox.style.backgroundColor = hexToRgba(c.user.color || '#10b981', 0.22);
-          remoteCursorsLayer.appendChild(selBox);
+          nextCursors.push(selBox);
         });
       }
 
       // Hide cursor if scrolled outside visible viewport
-      if (coords.top < -40 || coords.top > paperTextarea.clientHeight + 40) return;
+      if (coords.top < -40 || coords.top > viewportHeight + 40) return;
 
       const userColor = c.user.color || '#10b981';
       const initial = ((c.user.name || 'U')[0] || 'U').toUpperCase();
@@ -1794,7 +1834,7 @@
 
       // Adjust positioning near container edges
       if (coords.top < 32) cursorEl.classList.add('nametag-below');
-      if (coords.left > paperTextarea.clientWidth - 150) cursorEl.classList.add('nametag-align-right');
+      if (coords.left > viewportWidth - 150) cursorEl.classList.add('nametag-align-right');
 
       cursorEl.innerHTML = `
         <div class="remote-cursor-caret" style="height: ${Math.round(coords.height)}px;"></div>
@@ -1822,8 +1862,11 @@
           </div>
         </div>
       `;
-      remoteCursorsLayer.appendChild(cursorEl);
+      nextCursors.push(cursorEl);
     });
+    const previous = Array.from(remoteCursorsLayer.children);
+    reconcileChildren(remoteCursorsLayer, nextCursors.map((node, i) =>
+      previous[i]?.isEqualNode(node) ? previous[i] : node));
   }
 
   // ==========================================
@@ -2007,11 +2050,12 @@
   function renderAttachments() {
     if (!attachmentsCardsGrid) return;
 
-    // Revoke previous blob URLs to prevent memory leaks
-    objectUrlsToRevoke.forEach(url => URL.revokeObjectURL(url));
-    objectUrlsToRevoke.clear();
-
-    attachmentsCardsGrid.innerHTML = '';
+    pruneCards(attachmentCardCache, currentAttachments);
+    const live = new Map(currentAttachments.map(item => [item.id, item.blob]));
+    for (const [id, entry] of attachmentUrls) {
+      if (live.get(id) !== entry.blob) { URL.revokeObjectURL(entry.url); attachmentUrls.delete(id); }
+    }
+    const nodes = [];
 
     let filtered = currentAttachments;
     if (activeAttachmentFilter !== 'all') {
@@ -2029,11 +2073,12 @@
     } else {
       if (emptyAttachmentsPlaceholder) emptyAttachmentsPlaceholder.classList.remove('active');
       filtered.forEach(item => {
-        const card = createAttachmentCard(item);
-        attachmentsCardsGrid.appendChild(card);
+        const card = cachedCard(attachmentCardCache, item, createAttachmentCard);
+        nodes.push(card);
       });
     }
 
+    reconcileChildren(attachmentsCardsGrid, nodes);
     updateAttachmentStats();
   }
 
@@ -2047,8 +2092,13 @@
     let previewUrl = '';
     if (item.blob) {
       try {
-        previewUrl = URL.createObjectURL(item.blob);
-        objectUrlsToRevoke.add(previewUrl);
+        let entry = attachmentUrls.get(item.id);
+        if (!entry || entry.blob !== item.blob) {
+          if (entry) URL.revokeObjectURL(entry.url);
+          entry = {blob: item.blob, url: URL.createObjectURL(item.blob)};
+          attachmentUrls.set(item.id, entry);
+        }
+        previewUrl = entry.url;
       } catch (e) {}
     } else if (item.thumbData) {
       previewUrl = item.thumbData;
@@ -2305,10 +2355,8 @@
       showToast('No attachments to download');
       return;
     }
-    if (!window.JSZip) {
-      showToast('JSZip engine not loaded');
-      return;
-    }
+    try { await window.loadOptionalLibrary('zip'); }
+    catch (error) { showToast('Unable to load ZIP export. Please try again.'); return; }
 
     const readyItems = currentAttachments.filter(a => !!a.blob);
     if (readyItems.length === 0) {
@@ -2528,10 +2576,8 @@
       if (isReadOnlyMode || isPageLocked(activeNotePageId)) return;
       const text = paperTextarea.value;
       window.syncEngine.setNoteText(text, activeNotePageId);
-      updateTextStats(text);
-      updateAuthorBackdrop();
+      scheduleEditorDecorations();
       window.syncEngine.setLocalCursor(paperTextarea.selectionStart, paperTextarea.selectionEnd);
-      window.syncEngine.setLocalTyping(true);
       renderRemoteCursors();
     });
 
@@ -2895,11 +2941,11 @@
 
     // 8. Link search & filter chips
     if (linkSearchInput) {
-      linkSearchInput.addEventListener('input', (e) => {
+      linkSearchInput.addEventListener('input', debounce((e) => {
         linkSearchQuery = e.target.value.trim();
         if (btnClearLinkSearch) btnClearLinkSearch.style.display = linkSearchQuery ? 'block' : 'none';
         renderLinks();
-      });
+      }));
     }
 
     if (btnClearLinkSearch) {
@@ -2964,10 +3010,10 @@
     }
 
     if (attachmentSearchInput) {
-      attachmentSearchInput.addEventListener('input', (e) => {
+      attachmentSearchInput.addEventListener('input', debounce((e) => {
         attachmentSearchQuery = e.target.value.trim();
         renderAttachments();
-      });
+      }));
     }
 
     document.querySelectorAll('.attachment-filter-btn').forEach(pill => {
@@ -3396,6 +3442,7 @@
     if (qrCodeBox) {
       qrCodeBox.innerHTML = '<span style="font-size:12px;color:var(--text-subtle);">Generating QR...</span>';
       try {
+        await window.loadOptionalLibrary('qrcode');
         if (window.QRCode && window.QRCode.toDataURL) {
           const qrDataUrl = await window.QRCode.toDataURL(cleanUrl, {
             width: 180,
