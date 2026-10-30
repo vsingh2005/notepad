@@ -106,3 +106,32 @@ test('list reconciliation preserves unchanged cards and handles filtering and re
   context.reconcileChildren(parent, [a, b, c]);
   assert.deepEqual(parent.children, [a, b, c]);
 });
+
+test('scroll pauses decorative frames until interaction stops without changing the saved toggle', () => {
+  const timers = new Map();
+  let nextTimer = 0;
+  let frames = 0;
+  const context = vm.createContext({window: {},
+    document: {readyState: 'loading', addEventListener() {}, hidden: false},
+    performance: {now: () => 1},
+    requestAnimationFrame() { frames++; return frames; }, cancelAnimationFrame() {},
+    setTimeout(fn) { timers.set(++nextTimer, fn); return nextTimer; },
+    clearTimeout(id) { timers.delete(id); }
+  });
+  vm.runInContext(fs.readFileSync('js/nature.js', 'utf8') + '\nwindow.Nature = NatureAmbience;', context);
+  const nature = Object.create(context.window.Nature.prototype);
+  nature.isActive = true;
+  nature.pauseForInteraction(); nature.pauseForInteraction();
+  nature.animate(50);
+  assert.equal(frames, 0);
+  assert.equal(timers.size, 1, 'one resume timer per scroll burst');
+  assert.equal(nature.isActive, true);
+  let resumed = 0;
+  nature.animate = () => resumed++;
+  Array.from(timers.values())[0]();
+  assert.equal(nature.interactionPaused, false);
+  assert.equal(resumed, 1);
+  nature.pauseForInteraction(); nature.isActive = false;
+  Array.from(timers.values()).at(-1)();
+  assert.equal(resumed, 1, 'turning ambience off during scrolling must keep it off');
+});

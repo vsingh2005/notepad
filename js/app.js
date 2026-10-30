@@ -1451,6 +1451,7 @@
 
   function updateAuthorBackdrop() {
     if (!authorHighlightsBackdrop) return;
+    if (!document.body.classList.contains('view-notepad') && !document.body.classList.contains('view-split')) return;
     if (!authorHighlightsEnabled) {
       authorHighlightsBackdrop.innerHTML = '';
       return;
@@ -1749,6 +1750,8 @@
   let frameTextareaWidth = 0;
   function renderRemoteCursors(cursors) {
     if (cursors !== undefined) currentRemoteCursors = cursors || [];
+    if (!document.body.classList.contains('view-notepad') && !document.body.classList.contains('view-split')) return;
+    if (!currentRemoteCursors.length && !remoteCursorsLayer?.childElementCount) return;
     if (cursorFrame !== null) return;
     cursorFrame = requestAnimationFrame(() => {
       cursorFrame = null;
@@ -3399,6 +3402,7 @@
       mode = 'split';
     }
 
+    window.natureAmbience?.pauseForInteraction();
     document.body.classList.remove('view-notepad', 'view-links', 'view-split', 'view-attachments');
     document.body.classList.add(`view-${mode}`);
 
@@ -3421,10 +3425,16 @@
     }
 
     if (mode === 'notepad' || mode === 'split') {
-      if (noteEditorMode === 'edit') paperTextarea.focus();
-      setTimeout(() => renderRemoteCursors(), 50);
+      requestAnimationFrame(() => {
+        if (!document.body.classList.contains(`view-${mode}`)) return;
+        if (noteEditorMode === 'edit') paperTextarea.focus({preventScroll: true});
+        updateAuthorBackdrop();
+        renderRemoteCursors();
+      });
     } else if (mode === 'links') {
-      if (quickPasteInput) quickPasteInput.focus();
+      requestAnimationFrame(() => {
+        if (document.body.classList.contains('view-links')) quickPasteInput?.focus({preventScroll: true});
+      });
     }
   }
 

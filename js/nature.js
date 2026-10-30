@@ -36,6 +36,8 @@ class NatureAmbience {
   init() {
     this.resize();
     window.addEventListener('resize', () => this.resize());
+    // Scrolling and changing views take priority over decorative painting.
+    document.addEventListener('scroll', () => this.pauseForInteraction(), {capture: true, passive: true});
     document.addEventListener('visibilitychange', () => {
       cancelAnimationFrame(this.animationFrameId);
       this.lastFrameTime = 0;
@@ -62,6 +64,17 @@ class NatureAmbience {
     } else {
       this.drawStaticBackground();
     }
+  }
+
+  pauseForInteraction() {
+    this.interactionPaused = true;
+    cancelAnimationFrame(this.animationFrameId);
+    clearTimeout(this.interactionTimer);
+    this.interactionTimer = setTimeout(() => {
+      this.interactionPaused = false;
+      this.lastFrameTime = 0;
+      if (this.isActive && !document.hidden) this.animate();
+    }, 180);
   }
 
   resize() {
@@ -201,7 +214,7 @@ class NatureAmbience {
   }
 
   animate(timestamp = performance.now()) {
-    if (!this.isActive || document.hidden) return;
+    if (!this.isActive || document.hidden || this.interactionPaused) return;
     this.animationFrameId = requestAnimationFrame(time => this.animate(time));
     if (this.lastFrameTime && timestamp - this.lastFrameTime < 1000 / 30) return;
     const step = this.lastFrameTime ? Math.min((timestamp - this.lastFrameTime) / (1000 / 60), 4) : 1;
